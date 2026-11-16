@@ -178,57 +178,21 @@ def show_menu():
     print("1. 설치 확인 (Ollama에게 '안녕' 말하기)")
     print("q. 종료\n")
     print("-" * 60)
-    return input("선택: ").strip()
+    return input("번호를 입력하세요 (1, q) > ").strip()
 
 def run_hello_test():
     """Ollama 연결 테스트"""
-    print("\n▶ 실행하는 명령: Ollama 테스트\n")
+    command = "python hanabot/test_ollama.py"
+    print(f"\n▶ 실행하는 명령: {command}\n")
 
     try:
-        import urllib.request
-        import json
-        import time
-
-        ollama_host = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
-        chat_model = os.getenv('CHAT_MODEL', 'llama3.1')
-
-        print(f"🔗 {ollama_host}에 연결 중...")
-        print(f"📝 모델: {chat_model}")
-        print(f"💬 메시지: 안녕\n")
-
-        # Ollama API 호출
-        prompt = "짧게 답변해: 안녕"
-        data = {
-            'model': chat_model,
-            'prompt': prompt,
-            'stream': False,
-            'temperature': 0.7
-        }
-
-        req_data = json.dumps(data).encode('utf-8')
-        req = urllib.request.Request(
-            f"{ollama_host}/api/generate",
-            data=req_data,
-            headers={'Content-Type': 'application/json'}
+        result = subprocess.run(
+            [sys.executable, "hanabot/test_ollama.py"],
+            cwd=Path.cwd(),
+            capture_output=False,
+            text=True
         )
-
-        print("⏳ Ollama가 응답 중입니다... (1-2초 소요)")
-        start_time = time.time()
-
-        response = urllib.request.urlopen(req, timeout=60)
-        result = json.loads(response.read().decode('utf-8'))
-
-        elapsed = time.time() - start_time
-
-        print(f"\n✅ 응답 받았습니다! ({elapsed:.1f}초)\n")
-        print("📢 Ollama의 응답:")
-        print("-" * 60)
-        print(result['response'].strip())
-        print("-" * 60 + "\n")
-
-    except urllib.error.URLError:
-        print("❌ 오류: Ollama 서버에 연결할 수 없습니다.")
-        print("💡 Ollama가 실행 중인지 확인하세요: ollama serve\n")
+        print()
     except Exception as e:
         print(f"❌ 오류: {str(e)}\n")
 
