@@ -1,0 +1,18 @@
+# 하나봇 Python 의존성
+# 각 단계별로 추가됨
+
+# Stage 1-1: LangChain 기초
+# langchain>=0.1.0
+# langchain-community>=0.0.10
+
+# Stage 1-2: RAG
+# langchain-chroma>=0.1.0
+# chromadb>=0.4.0
+
+# Stage 2-1: FastAPI 서버
+# fastapi>=0.104.0
+# uvicorn>=0.24.0
+
+# 기타
+# python-dotenv>=1.0.0
+# pydantic>=2.0.0
