@@ -134,7 +134,7 @@ git log --oneline --graph
 |------|-----------|---------|---------|
 | **stage-0** | [Stage-0] 프로젝트 초기 설정 | CLAUDE.md, .gitignore, PLAN.md, README.md | - |
 | **stage-1-1** | [1-1] LangChain 기초 | hanabot/llm.py, apps/cli.py | `python apps/cli.py` |
-| **stage-1-2** | [1-2] RAG 구현 | hanabot/rag/, Chroma | `python apps/cli.py` |
+| **stage-1-2** | [1-2] RAG 구현 완료 (RAG_PLAN.md 기반) | hanabot/rag.py, apps/chat*.py, apps/compare.py | `apps/run.bat` |
 | **stage-1-3** | [1-3] Fine-tuning | labs/1-3-finetuning/, 평가 데이터셋 | `python labs/1-3-finetuning/train.py` |
 | **stage-1-4** | [1-4] LLMOps | labs/1-4-llmops/, 자동 평가 | `python labs/1-4-llmops/eval.py` |
 | **stage-2-1** | [2-1] RAG 서비스 | apps/api.py, FastAPI, 웹 UI | `python apps/api.py` |
