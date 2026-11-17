@@ -1,0 +1,30 @@
+{"conversations": [{"role": "user", "content": "기초반은 몇 주 동안 지속되나요?"}, {"role": "assistant", "content": "하나 AI 학원의 기초반은 4주 과정이며 월요일과 화요일에 수업합니다.\n기초반에서는 생성AI 기초, 프롬프트, 파이썬 기초, LangChain, RAG를 배웁니다."}]}
+{"conversations": [{"role": "user", "content": "질문3"}, {"role": "assistant", "content": "월요일은 기초반 수업입니다.\n오전에는 생성AI 기초와 프롬프트, 오후에는 파이썬 기초를 배웁니다."}]}
+{"conversations": [{"role": "user", "content": "기초반은 월요일과 화요일에만 수업을 하나요?"}, {"role": "assistant", "content": "하나 AI 학원의 기초반은 4주 과정이며 월요일과 화요일에 수업합니다.\n기초반에서는 생성AI 기초, 프롬프트, 파이썬 기초, LangChain, RAG를 배웁니다."}]}
+{"conversations": [{"role": "user", "content": "주변 맛있는 식당 추천해줄래?"}, {"role": "assistant", "content": "규정에 없는 내용입니다."}]}
+{"conversations": [{"role": "user", "content": "계약금 환불 가능해?"}, {"role": "assistant", "content": "규정에 없는 내용입니다."}]}
+{"conversations": [{"role": "user", "content": "실습 데이터에 이름, 전화번호, 주민번호를 사용하면 안되요?"}, {"role": "assistant", "content": "실습 데이터에는 실제 이름, 전화번호, 주민번호를 넣지 않습니다."}]}
+{"conversations": [{"role": "user", "content": "조퇴를 2번 이상 하면 결석 1회로 처리가 되나요?"}, {"role": "assistant", "content": "수업이 끝나기 30분 전보다 일찍 나가면 조퇴입니다.\n조퇴 2회는 결석 1회로 처리합니다."}]}
+{"conversations": [{"role": "user", "content": "실습 데이터에는 진짜 이름, 전화번호, 주민번호를 넣으면 안되나요?"}, {"role": "assistant", "content": "실습 데이터에는 실제 이름, 전화번호, 주민번호를 넣지 않습니다."}]}
+{"conversations": [{"role": "user", "content": "AI 학원에서는 PC로 어떤 모델을 실습하는가?"}, {"role": "assistant", "content": "하나 AI 학원의 실습은 각자 PC의 Ollama 모델(llama3.1)로 합니다."}]}
+{"conversations": [{"role": "user", "content": "AI 학원에서 실습하는 모델은 어떤 종류의 모델인가요?"}, {"role": "assistant", "content": "하나 AI 학원의 실습은 각자 PC의 Ollama 모델(llama3.1)로 합니다."}]}
+{"conversations": [{"role": "user", "content": "보안 규정을 처음 어기면 무슨 징계를 받나요?"}, {"role": "assistant", "content": "보안 규정을 처음 어기면 경고를 받습니다.\n두 번 어기면 해당 과정의 수강이 제한됩니다."}]}
+{"conversations": [{"role": "user", "content": "101 강의실은 어디에 있어요?"}, {"role": "assistant", "content": "오전 수업은 09:30부터 12:30까지 101 강의실에서 합니다.\n오후 수업은 14:00부터 17:00까지 102 실습실에서 합니다."}]}
+{"conversations": [{"role": "user", "content": "실무반 수업은 언제 있나요?"}, {"role": "assistant", "content": "목요일은 실무반 수업입니다.\n오전에는 바이브코딩, 오후에는 웹 서비스(FastAPI)를 배웁니다."}]}
+{"conversations": [{"role": "user", "content": "수요일에 Fine-tuning과 LLMOps를 배웁니다. LLMOps는 어떤 수업인가요?"}, {"role": "assistant", "content": "수요일은 실무반 수업입니다.\n오전에는 Fine-tuning, 오후에는 LLMOps를 배웁니다."}]}
+{"conversations": [{"role": "user", "content": "질문3"}, {"role": "assistant", "content": "화요일은 기초반 수업입니다.\n오전에는 LangChain, 오후에는 RAG를 배웁니다."}]}
+{"conversations": [{"role": "user", "content": "질문2"}, {"role": "assistant", "content": "화요일은 기초반 수업입니다.\n오전에는 LangChain, 오후에는 RAG를 배웁니다."}]}
+{"conversations": [{"role": "user", "content": "수요일 실무반 수업 내용을 알려주세요."}, {"role": "assistant", "content": "수요일은 실무반 수업입니다.\n오전에는 Fine-tuning, 오후에는 LLMOps를 배웁니다."}]}
+{"conversations": [{"role": "user", "content": "RAM 16GB 이상의 노트북이 아니면 수업을 들을 수 있나요?"}, {"role": "assistant", "content": "수업에는 개인 노트북을 가져옵니다.\n실습을 위해 RAM 16GB 이상인 노트북을 권장합니다.  \n# 수강료와 환불"}]}
+{"conversations": [{"role": "user", "content": "오후 수업 시간은 언제부터 언제까지요?"}, {"role": "assistant", "content": "오전 수업은 09:30부터 12:30까지 101 강의실에서 합니다.\n오후 수업은 14:00부터 17:00까지 102 실습실에서 합니다."}]}
+{"conversations": [{"role": "user", "content": "10분 넘게 지각하면 어떻게 하나요?"}, {"role": "assistant", "content": "수업 시작 후 10분이 넘어서 들어오면 지각입니다.\n지각 3회는 결석 1회로 처리합니다."}]}
+{"conversations": [{"role": "user", "content": "외부 AI 서비스 사용 금지 규정에 대해 더 알고 싶어요."}, {"role": "assistant", "content": "학원 자료와 수강생 정보를 ChatGPT 같은 외부 AI 서비스에 올리지 않습니다."}]}
+{"conversations": [{"role": "user", "content": "출석률 80%를 넘겨야 수료증을 받을 수 있나요?"}, {"role": "assistant", "content": "출석률이 80% 이상이면 과정이 끝날 때 수료증을 받습니다."}]}
+{"conversations": [{"role": "user", "content": "이 실습 모델은 어떤 이름의 모델인가요?"}, {"role": "assistant", "content": "하나 AI 학원의 실습은 각자 PC의 Ollama 모델(llama3.1)로 합니다."}]}
+{"conversations": [{"role": "user", "content": "수업 시간은 오전과 오후에만 있나요?"}, {"role": "assistant", "content": "오전 수업은 09:30부터 12:30까지 101 강의실에서 합니다.\n오후 수업은 14:00부터 17:00까지 102 실습실에서 합니다."}]}
+{"conversations": [{"role": "user", "content": "첫 번째 규칙 위반시에는 어떻게 하면 좋나요?"}, {"role": "assistant", "content": "보안 규정을 처음 어기면 경고를 받습니다.\n두 번 어기면 해당 과정의 수강이 제한됩니다."}]}
+{"conversations": [{"role": "user", "content": "실습실에 음식을 들여올 수 있나요?"}, {"role": "assistant", "content": "실습실에는 음식을 가져올 수 없습니다.\n뚜껑이 있는 물은 가져와도 됩니다."}]}
+{"conversations": [{"role": "user", "content": "102 실습실은 어디에 있어요?"}, {"role": "assistant", "content": "오전 수업은 09:30부터 12:30까지 101 강의실에서 합니다.\n오후 수업은 14:00부터 17:00까지 102 실습실에서 합니다."}]}
+{"conversations": [{"role": "user", "content": "외부 AI 서비스를 왜 금지합니까?"}, {"role": "assistant", "content": "학원 자료와 수강생 정보를 ChatGPT 같은 외부 AI 서비스에 올리지 않습니다."}]}
+{"conversations": [{"role": "user", "content": "80% 이상 출석한 학생들은 수료증을 받을 수 있나요?"}, {"role": "assistant", "content": "출석률이 80% 이상이면 과정이 끝날 때 수료증을 받습니다."}]}
+{"conversations": [{"role": "user", "content": "학원소개란 어떤곳인가요?"}, {"role": "assistant", "content": "# 학원 소개"}]}
