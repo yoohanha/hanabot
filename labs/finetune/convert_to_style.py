@@ -1,12 +1,11 @@
-# [1-3] 데이터셋을 STYLE.md 형식으로 변환
+# [1-3] 데이터셋을 STYLE.md 형식으로 변환 (개선 버전)
 import json
 from pathlib import Path
 
-# STYLE.md 형식 변환 매핑
-# 질문과 원문으로부터 STYLE.md 형식 답변을 생성
-ANSWER_TEMPLATES = {
+# RAG_PLAN.md의 원문으로부터 STYLE.md 형식 답변 생성
+STYLE_ANSWERS = {
     # 기초반
-    "기초반": "[하나봇]\n- 하나 AI 학원의 기초반은 4주 과정입니다\n- 월요일과 화요일에 수업합니다\n- 생성AI 기초, 프롬프트, 파이썬 기초, LangChain, RAG를 배웁니다\n자세한 내용은 학원 데스크로 문의해 주세요.",
+    "기초반": "[하나봇]\n- 4주 과정이며 월요일과 화요일에 수업합니다\n- 생성AI 기초, 프롬프트, 파이썬 기초, LangChain, RAG를 배웁니다\n자세한 내용은 학원 데스크로 문의해 주세요.",
 
     # 시간표
     "09:00": "[하나봇]\n- 102 실습실은 평일 09:00부터 21:00까지 쓸 수 있습니다\n- 수업이 없는 시간에는 실습실에서 자습할 수 있습니다\n자세한 내용은 학원 데스크로 문의해 주세요.",
@@ -29,7 +28,7 @@ ANSWER_TEMPLATES = {
     "30만": "[하나봇]\n- 기초반 수강료는 월 30만 원입니다\n자세한 내용은 학원 데스크로 문의해 주세요.",
     "50만": "[하나봇]\n- 실무반 수강료는 월 50만 원입니다\n자세한 내용은 학원 데스크로 문의해 주세요.",
     "할인": "[하나봇]\n- 같은 과정을 다시 들으면 수강료를 50% 할인합니다\n- 친구와 함께 등록하면 두 사람 모두 수강료를 10% 할인합니다\n- 할인은 중복되지 않으며, 둘 중 하나만 받을 수 있습니다\n자세한 내용은 학원 데스크로 문의해 주세요.",
-    "환불": "[하나봇]\n- 개강 전에 취소하면 수강료 전액을 환불합니다\n- 수업 기간의 1/3이 지나기 전에는 수강료의 2/3를 환불합니다\n- 수업 기간의 1/2이 지나기 전에는 수강료의 1/2을 환불합니다\n- 수업 기간의 1/2이 지난 뒤에는 환불하지 않습니다\n자세한 내용은 학원 데스크로 문의해 주세요.",
+    "환불": "[하나봇]\n- 개강 전에 취소하면 수강료 전액을 환불합니다\n- 수업 기간의 1/3이 지나기 전에는 수강료의 2/3를 환불합니다\n- 수업 기간의 1/2이 지나기 전에는 수강료의 1/2을 환불합니다\n자세한 내용은 학원 데스크로 문의해 주세요.",
 
     # 시설
     "GPU": "[하나봇]\n- 실습실의 GPU PC는 2시간 단위로 예약해서 씁니다\n- 한 사람이 하루 최대 4시간까지 쓸 수 있습니다\n자세한 내용은 학원 데스크로 문의해 주세요.",
@@ -48,27 +47,29 @@ DEFAULT_REJECT = "[하나봇]\n- 규정 문서에서 찾을 수 없습니다\n�
 
 def convert_answer(original_answer):
     """원문 답변을 STYLE.md 형식으로 변환"""
-    # 기존 답변이 이미 STYLE.md 형식인지 확인
+    # 이미 STYLE.md 형식인지 확인
     if original_answer.startswith("[하나봇]"):
         return original_answer
 
-    # 기존 답변이 거절 형식인지 확인
-    if "규정에 없는" in original_answer:
+    # 거절 형식인지 확인
+    if "규정에 없는" in original_answer or original_answer.strip() == "# 학원 소개":
         return DEFAULT_REJECT
 
-    # 키워드로 매핑된 템플릿 찾기
-    for keyword, template in ANSWER_TEMPLATES.items():
-        if keyword in original_answer:
+    # 원문 첫 줄을 보고 키워드 찾아서 매핑
+    first_line = original_answer.split('\n')[0]
+
+    # 각 키워드 확인 (더 정교한 매칭)
+    for keyword, template in STYLE_ANSWERS.items():
+        if keyword in original_answer or keyword in first_line:
             return template
 
-    # 매칭되는 템플릿이 없으면 기본 거절 형식 사용
+    # 매칭 실패 → 기본 거절
     return DEFAULT_REJECT
 
 
 def convert_dataset(input_file, output_file):
     """JSONL 파일 변환"""
     converted = []
-
     with open(input_file, 'r', encoding='utf-8') as f:
         for line in f:
             try:
@@ -94,14 +95,11 @@ def convert_dataset(input_file, output_file):
 
 
 if __name__ == "__main__":
-    # labs/finetune → data/finetune 으로 먼저 복사
-    base_dir = Path(__file__).parent
-    old_train = base_dir / "hanabot_train.jsonl"
-    old_eval = base_dir / "hanabot_eval.jsonl"
-
-    new_dir = base_dir.parent.parent / "data" / "finetune"
+    new_dir = Path(__file__).parent.parent.parent / "data" / "finetune"
     new_dir.mkdir(parents=True, exist_ok=True)
 
+    # labs/finetune의 원본 파일을 직접 읽어서 변환
+    old_dir = Path(__file__).parent
     new_train = new_dir / "hanabot_train.jsonl"
     new_eval = new_dir / "hanabot_eval.jsonl"
 
@@ -109,14 +107,16 @@ if __name__ == "__main__":
     print("📝 데이터셋을 STYLE.md 형식으로 변환 중...\n")
 
     # 훈련 데이터 변환
-    if old_train.exists():
-        count = convert_dataset(old_train, new_train)
+    old_train_file = old_dir / "hanabot_train.jsonl"
+    if old_train_file.exists():
+        count = convert_dataset(old_train_file, new_train)
         print(f"✓ 훈련 데이터: {count}개 변환 완료")
         print(f"  저장: {new_train}\n")
 
     # 평가 데이터 변환
-    if old_eval.exists():
-        count = convert_dataset(old_eval, new_eval)
+    old_eval_file = old_dir / "hanabot_eval.jsonl"
+    if old_eval_file.exists():
+        count = convert_dataset(old_eval_file, new_eval)
         print(f"✓ 평가 데이터: {count}개 변환 완료")
         print(f"  저장: {new_eval}\n")
 
