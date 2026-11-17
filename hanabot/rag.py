@@ -28,8 +28,67 @@ if LANGFUSE_ENABLED:
         print(f"⚠️  Langfuse 연결 실패: {e}")
         langfuse_handler = None
 
+# [1-4] 기본 RAG 프롬프트 (Langfuse 연결 실패 시 사용)
+DEFAULT_PROMPT_TEMPLATE = """다음 규정 문서를 읽고 질문에 답해주세요.
+
+규정:
+{documents}
+
+질문: {question}
+
+규칙:
+- 문서에 있는 내용으로만 답하세요
+- 문서에 없는 내용이면 "규정에 없는 내용입니다"라고만 답하세요
+- 간결하게 답하세요
+"""
+
 # [1-4] 프로그램 시작 시 한 번만 임베딩 (캐싱)
 _vector_store = None
+_prompt_cache = None
+
+
+def get_prompt(label=None):
+    """Langfuse에서 프롬프트 가져오기 (또는 기본값 사용)
+
+    Args:
+        label: Langfuse 프롬프트 라벨 (기본: "production")
+
+    Returns:
+        (prompt_template, prompt_version): PromptTemplate과 버전 정보
+    """
+    # 캐시 사용 (label이 없을 때만)
+    global _prompt_cache
+    if _prompt_cache is not None and label is None:
+        return _prompt_cache
+
+    prompt_version = "default"
+    prompt_template = DEFAULT_PROMPT_TEMPLATE
+    prompt_label = label or "production"
+
+    # Langfuse에서 프롬프트 가져오기
+    if langfuse_handler:
+        try:
+            langfuse_prompt = langfuse_handler.get_prompt(
+                name="hanabot-rag",
+                label=prompt_label
+            )
+            if langfuse_prompt and langfuse_prompt.prompt:
+                prompt_template = langfuse_prompt.prompt
+                prompt_version = f"v{langfuse_prompt.version}"
+        except Exception as e:
+            # 연결 실패 시 기본 프롬프트 사용
+            pass
+
+    # 프롬프트 캐시 저장 (label이 없을 때만)
+    prompt_obj = PromptTemplate(
+        input_variables=["documents", "question"],
+        template=prompt_template
+    )
+
+    if label is None:
+        _prompt_cache = (prompt_obj, prompt_version)
+
+    return (prompt_obj, prompt_version)
 
 def get_vector_store():
     """벡터 저장소 조회 (캐싱된 버전 사용)"""
@@ -87,7 +146,7 @@ def load_rag_docs():
     return vector_store
 
 
-def answer_question(question, model=None):
+def answer_question(question, model=None, label=None):
     """질문에 답변 (RAG 사용)
 
     Args:
@@ -96,11 +155,16 @@ def answer_question(question, model=None):
     """
     # [1-4] Langfuse 추적 시작
     trace = None
+    prompt_version = "default"
     if langfuse_handler:
         try:
+            # 프롬프트 버전 미리 확인
+            _, prompt_version = get_prompt()
+
             trace = langfuse_handler.trace(
                 name="hanabot-rag",
-                input={"question": question}
+                input={"question": question},
+                metadata={"prompt_version": prompt_version}
             )
         except Exception:
             pass
@@ -147,22 +211,8 @@ def answer_question(question, model=None):
             for doc, score in results
         ])
 
-        # RAG 프롬프트
-        prompt = PromptTemplate(
-            input_variables=["documents", "question"],
-            template="""다음 규정 문서를 읽고 질문에 답해주세요.
-
-규정:
-{documents}
-
-질문: {question}
-
-규칙:
-- 문서에 있는 내용으로만 답하세요
-- 문서에 없는 내용이면 "규정에 없는 내용입니다"라고만 답하세요
-- 간결하게 답하세요
-"""
-        )
+        # [1-4] Langfuse 프롬프트 가져오기 (또는 기본값)
+        prompt, prompt_version = get_prompt(label=label)
 
         # [1-4] Generate 단계
         generate_start = time.time()
@@ -177,10 +227,11 @@ def answer_question(question, model=None):
             try:
                 trace.span(
                     name="generate",
-                    input={"model": model_name},
+                    input={"model": model_name, "prompt_version": prompt_version},
                     output={
                         "answer": response.strip(),
-                        "model": model_name
+                        "model": model_name,
+                        "prompt_version": prompt_version
                     },
                     duration=int(generate_time * 1000)
                 )

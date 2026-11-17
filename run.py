@@ -180,9 +180,10 @@ def show_menu():
     print("3. 하나봇에게 질문 (RAG)")
     print("4. RAG 있음/없음 비교")
     print("5. 파인튜닝 비교 (4가지)")
+    print("6. 품질 점수 보기 (RAGAS · 5문항)")
     print("q. 종료\n")
     print("-" * 60)
-    return input("번호를 입력하세요 (1-5, q) > ").strip()
+    return input("번호를 입력하세요 (1-6, q) > ").strip()
 
 def run_hello_test():
     """Ollama 연결 테스트"""
@@ -200,18 +201,22 @@ def run_hello_test():
     except Exception as e:
         print(f"❌ 오류: {str(e)}\n")
 
-def run_command(script_path, name):
+def run_command(script_path, name, args=None):
     """명령 실행"""
     if not Path(script_path).exists():
         print(f"❌ 오류: {script_path} 파일을 찾을 수 없습니다\n")
         return
 
-    command = f"python {script_path}"
+    cmd_args = [sys.executable, script_path]
+    if args:
+        cmd_args.extend(args)
+
+    command = f"python {script_path}" + (f" {' '.join(args)}" if args else "")
     print(f"\n▶ 실행하는 명령: {command}\n")
 
     try:
         result = subprocess.run(
-            [sys.executable, script_path],
+            cmd_args,
             cwd=Path.cwd(),
             capture_output=False,
             text=True
@@ -273,6 +278,8 @@ def main():
                 print("   3. models/hanabot-ft/ 에 압축 해제")
                 print("   4. python labs/1-3/make_modelfile.py 실행")
                 print("   그 후 메뉴 5번을 다시 선택하세요.\n")
+        elif choice == '6':
+            run_command("labs/1-4/eval_ragas.py", "품질 점수 (RAGAS)", args=["--n", "5"])
         elif choice.lower() == 'q':
             print("프로그램을 종료합니다. 👋\n")
             break
