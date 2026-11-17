@@ -31,33 +31,35 @@ gguf_file = gguf_files[0]
 print(f"✓ GGUF 파일 찾음: {gguf_file.name}")
 print(f"  크기: {gguf_file.stat().st_size / 1e9:.2f}GB")
 
-# Modelfile 로드 (Colab에서 받은 것)
+# [1-3] Qwen(ChatML) 대화 형식 · Ollama 문법 (학습할 때와 같은 형식)
+DEFAULT_TEMPLATE = '''TEMPLATE """{{ if .System }}<|im_start|>system
+{{ .System }}<|im_end|>
+{{ end }}{{ if .Prompt }}<|im_start|>user
+{{ .Prompt }}<|im_end|>
+{{ end }}<|im_start|>assistant
+{{ .Response }}<|im_end|>
+"""
+PARAMETER stop "<|im_start|>"
+PARAMETER stop "<|im_end|>"'''
+
+system_prompt = f"당신은 {COMPANY_NAME}의 도우미 하나봇입니다."
+
+# [1-3] Colab에서 받은 Modelfile이 있으면 TEMPLATE은 그대로 두고 FROM · SYSTEM 줄만 바꿈
 colab_modelfile = model_dir / "Modelfile"
-if colab_modelfile.exists():
-    with open(colab_modelfile, "r", encoding="utf-8") as f:
-        content = f.read()
-    print(f"✓ Colab Modelfile 로드됨")
-    # TEMPLATE 추출
-    if "TEMPLATE" in content:
-        template = [line for line in content.split("\n") if "TEMPLATE" in line][0]
-    else:
-        template = None
+if colab_modelfile.exists() and "TEMPLATE" in colab_modelfile.read_text(encoding="utf-8"):
+    print("✓ Colab Modelfile 사용 (TEMPLATE 유지)")
+    lines = []
+    for line in colab_modelfile.read_text(encoding="utf-8").splitlines():
+        if line.startswith("FROM "):
+            line = f"FROM ./{gguf_file.name}"
+        elif line.startswith("SYSTEM "):
+            line = f'SYSTEM "{system_prompt}"'
+        lines.append(line)
+    modelfile = "\n".join(lines) + "\n"
 else:
-    print("⚠️  Colab Modelfile이 없습니다. 기본값 사용")
-    template = None
-
-# 새 Modelfile 생성
-system_prompt = f"{COMPANY_NAME}의 도우미 하나봇입니다. 학원 규정에 대한 질문에 답합니다."
-
-modelfile = f"""FROM {gguf_file.name}
-
-PARAMETER temperature 0.7
-PARAMETER top_p 0.9
-
-SYSTEM {system_prompt}"""
-
-if template:
-    modelfile += f"\n\n{template}"
+    print("⚠️  Colab Modelfile이 없거나 TEMPLATE이 없습니다. 기본 Qwen 형식 사용")
+    modelfile = (f"FROM ./{gguf_file.name}\n{DEFAULT_TEMPLATE}\n"
+                 f"PARAMETER temperature 0.3\nSYSTEM \"{system_prompt}\"\n")
 
 # Modelfile 저장
 modelfile_path = model_dir / "Modelfile"
