@@ -175,10 +175,14 @@ def show_menu():
     """메뉴 표시"""
     print("=" * 60)
     print("📋 메뉴\n")
-    print("1. 설치 확인 (Ollama에게 '안녕' 말하기)")
+    print("1. 설치 확인 (안녕)")
+    print("2. 하나봇과 대화 (RAG 없음)")
+    print("3. 하나봇에게 질문 (RAG)")
+    print("4. RAG 있음/없음 비교")
+    print("5. 파인튜닝 비교 (4가지)")
     print("q. 종료\n")
     print("-" * 60)
-    return input("번호를 입력하세요 (1, q) > ").strip()
+    return input("번호를 입력하세요 (1-5, q) > ").strip()
 
 def run_hello_test():
     """Ollama 연결 테스트"""
@@ -195,6 +199,41 @@ def run_hello_test():
         print()
     except Exception as e:
         print(f"❌ 오류: {str(e)}\n")
+
+def run_command(script_path, name):
+    """명령 실행"""
+    if not Path(script_path).exists():
+        print(f"❌ 오류: {script_path} 파일을 찾을 수 없습니다\n")
+        return
+
+    command = f"python {script_path}"
+    print(f"\n▶ 실행하는 명령: {command}\n")
+
+    try:
+        result = subprocess.run(
+            [sys.executable, script_path],
+            cwd=Path.cwd(),
+            capture_output=False,
+            text=True
+        )
+        print()
+    except Exception as e:
+        print(f"❌ 오류: {str(e)}\n")
+
+def check_model_exists(model_name):
+    """Ollama 모델 존재 확인"""
+    try:
+        import urllib.request
+        import json
+
+        ollama_host = os.getenv('OLLAMA_HOST', 'http://localhost:11434')
+        response = urllib.request.urlopen(f"{ollama_host}/api/tags", timeout=2)
+        data = json.loads(response.read().decode('utf-8'))
+        models = [m['name'] for m in data.get('models', [])]
+
+        return any(model_name in m for m in models)
+    except:
+        return False
 
 def main():
     """메인 프로그램"""
@@ -216,11 +255,29 @@ def main():
 
         if choice == '1':
             run_hello_test()
+        elif choice == '2':
+            run_command("apps/chat_no_rag.py", "RAG 없음 대화")
+        elif choice == '3':
+            run_command("apps/chat_with_rag.py", "RAG 대화")
+        elif choice == '4':
+            run_command("apps/compare.py", "RAG 비교")
+        elif choice == '5':
+            # 파인튜닝 모델 체크
+            if check_model_exists('hanabot-ft'):
+                run_command("labs/1-3/compare_ft.py", "파인튜닝 비교")
+            else:
+                print("\n⚠️  hanabot-ft 모델이 없습니다.")
+                print("💡 사용 방법:")
+                print("   1. Google Colab에서 finetune_colab.ipynb 실행")
+                print("   2. hanabot_finetuned.zip 다운로드")
+                print("   3. models/hanabot-ft/ 에 압축 해제")
+                print("   4. python labs/1-3/make_modelfile.py 실행")
+                print("   그 후 메뉴 5번을 다시 선택하세요.\n")
         elif choice.lower() == 'q':
             print("프로그램을 종료합니다. 👋\n")
             break
         else:
-            print("❌ 잘못된 선택입니다. 1 또는 q를 입력하세요.\n")
+            print("❌ 잘못된 선택입니다. 1-5 또는 q를 입력하세요.\n")
 
 if __name__ == "__main__":
     main()
