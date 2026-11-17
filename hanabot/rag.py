@@ -1,14 +1,42 @@
 # [1-2] 하나봇 RAG 시스템
+# [1-4] Langfuse 추적 추가
 import os
+import time
 from pathlib import Path
 
-from hanabot.config import CHAT_MODEL, EMBED_MODEL, OLLAMA_BASE_URL
+from hanabot.config import CHAT_MODEL, EMBED_MODEL, OLLAMA_BASE_URL, LANGFUSE_ENABLED, LANGFUSE_PUBLIC_KEY, LANGFUSE_SECRET_KEY
 from langchain_text_splitters import MarkdownHeaderTextSplitter
 from langchain_core.documents import Document
 from langchain_core.vectorstores import InMemoryVectorStore
 from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_ollama import OllamaEmbeddings, OllamaLLM
+
+# [1-4] Langfuse 초기화 (선택사항)
+langfuse_handler = None
+if LANGFUSE_ENABLED:
+    try:
+        from langfuse.decorators import observe
+        from langfuse import Langfuse
+
+        langfuse = Langfuse(
+            public_key=LANGFUSE_PUBLIC_KEY,
+            secret_key=LANGFUSE_SECRET_KEY
+        )
+        langfuse_handler = langfuse
+    except Exception as e:
+        print(f"⚠️  Langfuse 연결 실패: {e}")
+        langfuse_handler = None
+
+# [1-4] 프로그램 시작 시 한 번만 임베딩 (캐싱)
+_vector_store = None
+
+def get_vector_store():
+    """벡터 저장소 조회 (캐싱된 버전 사용)"""
+    global _vector_store
+    if _vector_store is None:
+        _vector_store = load_rag_docs()
+    return _vector_store
 
 
 def load_rag_docs():
@@ -66,26 +94,63 @@ def answer_question(question, model=None):
         question: 질문 텍스트
         model: 사용할 모델 이름 (기본: config.CHAT_MODEL)
     """
-    # 벡터 저장소 로드
-    vector_store = load_rag_docs()
+    # [1-4] Langfuse 추적 시작
+    trace = None
+    if langfuse_handler:
+        try:
+            trace = langfuse_handler.trace(
+                name="hanabot-rag",
+                input={"question": question}
+            )
+        except Exception:
+            pass
 
-    # LLM 초기화
-    model_name = model or CHAT_MODEL
-    llm = OllamaLLM(model=model_name, base_url=OLLAMA_BASE_URL)
+    try:
+        # 벡터 저장소 로드 (캐싱된 버전)
+        vector_store = get_vector_store()
 
-    # 비슷한 조각 검색
-    results = vector_store.similarity_search_with_score(question, k=3)
+        # LLM 초기화
+        model_name = model or CHAT_MODEL
+        llm = OllamaLLM(model=model_name, base_url=OLLAMA_BASE_URL)
 
-    # 문서 준비
-    doc_text = "\n\n".join([
-        f"{doc.metadata.get('title', '')}\n{doc.page_content}"
-        for doc, score in results
-    ])
+        # [1-4] Retrieve 단계
+        retrieve_start = time.time()
+        results = vector_store.similarity_search_with_score(question, k=3)
+        retrieve_time = time.time() - retrieve_start
 
-    # RAG 프롬프트
-    prompt = PromptTemplate(
-        input_variables=["documents", "question"],
-        template="""다음 규정 문서를 읽고 질문에 답해주세요.
+        # 조각 정보 추출
+        retrieved_docs = [
+            {
+                "title": doc.metadata.get('title', ''),
+                "score": score
+            }
+            for doc, score in results
+        ]
+
+        if trace:
+            try:
+                trace.span(
+                    name="retrieve",
+                    input={"question": question},
+                    output={
+                        "documents": retrieved_docs,
+                        "count": len(results)
+                    },
+                    duration=int(retrieve_time * 1000)
+                )
+            except Exception:
+                pass
+
+        # 문서 준비
+        doc_text = "\n\n".join([
+            f"{doc.metadata.get('title', '')}\n{doc.page_content}"
+            for doc, score in results
+        ])
+
+        # RAG 프롬프트
+        prompt = PromptTemplate(
+            input_variables=["documents", "question"],
+            template="""다음 규정 문서를 읽고 질문에 답해주세요.
 
 규정:
 {documents}
@@ -97,19 +162,43 @@ def answer_question(question, model=None):
 - 문서에 없는 내용이면 "규정에 없는 내용입니다"라고만 답하세요
 - 간결하게 답하세요
 """
-    )
+        )
 
-    # 체인 구성 및 실행
-    chain = prompt | llm | StrOutputParser()
-    response = chain.invoke({
-        "documents": doc_text,
-        "question": question
-    })
+        # [1-4] Generate 단계
+        generate_start = time.time()
+        chain = prompt | llm | StrOutputParser()
+        response = chain.invoke({
+            "documents": doc_text,
+            "question": question
+        })
+        generate_time = time.time() - generate_start
 
-    # 근거 추출
-    sources = [doc.metadata.get('title', '') for doc, score in results]
+        if trace:
+            try:
+                trace.span(
+                    name="generate",
+                    input={"model": model_name},
+                    output={
+                        "answer": response.strip(),
+                        "model": model_name
+                    },
+                    duration=int(generate_time * 1000)
+                )
+            except Exception:
+                pass
 
-    return response.strip(), sources
+        # 근거 추출
+        sources = [doc.metadata.get('title', '') for doc, score in results]
+
+        return response.strip(), sources
+
+    finally:
+        # [1-4] Trace 종료
+        if trace:
+            try:
+                trace.set_outcome({"success": True})
+            except Exception:
+                pass
 
 
 def answer_question_no_rag(question, model=None):
