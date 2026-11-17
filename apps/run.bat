@@ -12,11 +12,12 @@ echo.
 echo 1. 하나봇에게 질문 (RAG 없음)
 echo 2. 하나봇에게 질문 (RAG)
 echo 3. RAG 있음/없음 비교
+echo 4. 파인튜닝 비교 (4가지)
 echo.
 echo 0. 종료
 echo ========================================
 echo.
-set /p choice="선택 (0-3): "
+set /p choice="선택 (0-4): "
 
 if "%choice%"=="1" (
     cls
@@ -35,6 +36,13 @@ if "%choice%"=="2" (
 if "%choice%"=="3" (
     cls
     python compare.py
+    goto menu
+)
+
+if "%choice%"=="4" (
+    cls
+    python ..\labs\1-3\compare_ft.py
+    pause
     goto menu
 )
 

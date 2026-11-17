@@ -59,13 +59,19 @@ def load_rag_docs():
     return vector_store
 
 
-def answer_question(question):
-    """질문에 답변 (RAG 사용)"""
+def answer_question(question, model=None):
+    """질문에 답변 (RAG 사용)
+
+    Args:
+        question: 질문 텍스트
+        model: 사용할 모델 이름 (기본: config.CHAT_MODEL)
+    """
     # 벡터 저장소 로드
     vector_store = load_rag_docs()
 
     # LLM 초기화
-    llm = OllamaLLM(model=CHAT_MODEL, base_url=OLLAMA_BASE_URL)
+    model_name = model or CHAT_MODEL
+    llm = OllamaLLM(model=model_name, base_url=OLLAMA_BASE_URL)
 
     # 비슷한 조각 검색
     results = vector_store.similarity_search_with_score(question, k=3)
@@ -106,7 +112,13 @@ def answer_question(question):
     return response.strip(), sources
 
 
-def answer_question_no_rag(question):
-    """질문에 답변 (RAG 없음)"""
-    llm = OllamaLLM(model=CHAT_MODEL, base_url=OLLAMA_BASE_URL)
+def answer_question_no_rag(question, model=None):
+    """질문에 답변 (RAG 없음)
+
+    Args:
+        question: 질문 텍스트
+        model: 사용할 모델 이름 (기본: config.CHAT_MODEL)
+    """
+    model_name = model or CHAT_MODEL
+    llm = OllamaLLM(model=model_name, base_url=OLLAMA_BASE_URL)
     return llm.invoke(question).strip()
