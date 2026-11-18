@@ -711,6 +711,29 @@ section.schedule-section {
   color: var(--color-white);
 }
 
+/* [3-1] 근거 표시 */
+.chat-sources {
+  margin-top: var(--spacing-sm);
+  padding-top: var(--spacing-sm);
+  border-top: 1px solid rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.chat-source-link {
+  font-size: 12px;
+  color: var(--color-text-light);
+  text-decoration: none;
+  transition: all 0.2s ease;
+  padding: 4px 0;
+}
+
+.chat-source-link:hover {
+  color: var(--color-rose);
+  text-decoration: underline;
+}
+
 /* 입력 영역 */
 .chat-input-area {
   display: flex;

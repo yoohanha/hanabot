@@ -335,11 +335,39 @@ function initializeChat() {
 
       const data = await response.json();
       const botReply = data.reply || '오류가 발생했습니다.';
+      const sources = data.sources || [];
 
       // 봇 메시지 표시
       const botDiv = document.createElement('div');
       botDiv.className = 'chat-message bot';
-      botDiv.innerHTML = `<div class="message-content">${escapeHtml(botReply)}</div>`;
+
+      // [3-1] 근거 처리 (규정에 없는 경우 제외)
+      let sourcesHtml = '';
+      if (!botReply.includes('규정에 없는')) {
+        // 근거 중복 제거 및 포맷팅
+        const uniqueSources = [...new Set(sources)];
+
+        if (uniqueSources.length > 0) {
+          sourcesHtml = '<div class="chat-sources">';
+          uniqueSources.forEach(src => {
+            // "[# 제목 > ## 소제목]" 형식에서 제목과 소제목 추출
+            const match = src.match(/\[# (.+?) > ## (.+?)\]/);
+            if (match) {
+              const title = match[1];
+              const section = match[2];
+              sourcesHtml += `<a href="page.html?id=${encodeURIComponent(title)}&section=${encodeURIComponent(section)}" class="chat-source-link">${title} > ${section}</a>`;
+            }
+          });
+          sourcesHtml += '</div>';
+        }
+      }
+
+      botDiv.innerHTML = `
+        <div class="message-content">
+          ${escapeHtml(botReply)}
+          ${sourcesHtml}
+        </div>
+      `;
       chatMessages.appendChild(botDiv);
 
       // 자동 스크롤

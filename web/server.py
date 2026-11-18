@@ -2,17 +2,26 @@
 # [2-1] 하나 AI 학원 웹 서버 (FastAPI)
 
 import os
+import sys
 import json
 import re
 import socket
 import webbrowser
 import time
+import asyncio
 from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 from dotenv import load_dotenv
+
+# [3-1] 프로젝트 루트를 경로에 추가 (hanabot 패키지 임포트용)
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from fastapi import FastAPI
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+# [3-1] 하나봇 RAG 임포트
+from hanabot.rag import answer_question, get_vector_store
 
 # .env 로드
 load_dotenv()
@@ -26,6 +35,9 @@ RAG_PLAN = PROJECT_ROOT / 'data' / 'RAG_PLAN.md'
 
 # FastAPI 앱
 app = FastAPI()
+
+# [3-1] 스레드 풀 (RAG 질의용)
+executor = ThreadPoolExecutor(max_workers=2)
 
 # CORS 설정
 app.add_middleware(
@@ -138,21 +150,17 @@ async def api_docs_section(title: str, section: str):
     return JSONResponse({}, status_code=404)
 
 
-# [2-1] 채팅 엔드포인트 (3-1에서 hanabot/rag.py와 연결)
+# [3-1] 채팅 엔드포인트 (하나봇 RAG 연결)
 @app.post('/chat')
 async def chat(request_body: dict):
-    """사용자 메시지를 받고 응답 반환
-
-    TODO: [3-1] hanabot/rag.py와 연결
-    from hanabot.rag import rag_query
-    reply = rag_query(message)
-    """
+    """사용자 메시지를 받고 RAG로 응답 반환"""
     message = request_body.get('message', '')
 
-    # 임시 응답 (3-1에서 실제 RAG 엔진으로 교체)
-    reply = '하나봇은 3부에서 연결됩니다. 지금은 준비 중이에요.'
+    # [3-1] 스레드에서 RAG 질의 (서버 블로킹 방지)
+    loop = asyncio.get_event_loop()
+    reply, sources = await loop.run_in_executor(executor, answer_question, message)
 
-    return {'message': message, 'reply': reply}
+    return {'reply': reply, 'sources': sources}
 
 
 # [2-1] 정적 파일 제공
@@ -192,6 +200,14 @@ if __name__ == '__main__':
     print(f'\n🤖 하나 AI 학원 홈페이지를 엽니다')
     print(f'📍 http://{HOST}:{PORT}')
     print(f'💡 끄려면 Ctrl + C\n')
+
+    # [3-1] 규정 문서 미리 로드 (첫 질문이 느리지 않게)
+    print('📚 규정 문서를 준비 중...')
+    try:
+        get_vector_store()
+        print('✅ 규정 문서 준비 완료\n')
+    except Exception as e:
+        print(f'⚠️ 규정 문서 로드 오류: {e}\n')
 
     # 서버 시작 후 브라우저 열기 (별도 스레드에서)
     def open_browser():

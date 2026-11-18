@@ -96,6 +96,16 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "bge-m3")
 - **준비된 이미지**: `images/` → `web/static/assets/`로 옮겨 사용
 - **새로운 자산**: `web/static/assets/`에만 추가
 
+## 🔗 3-1 연결 규칙 (Part 3: 채팅창과 RAG 연결)
+
+### 수정 범위
+- **수정 가능**: `web/` 폴더 **안에만** (`web/server.py`, `web/static/`)
+- **수정 금지**: `hanabot/`, `labs/`, `apps/` (1-2부 코드는 그대로)
+- **불러오기만**: `from hanabot.rag import ...` 등으로 1부 모듈 가져다 쓰기
+
+### 단계 표시
+- 새로 추가하거나 수정한 코드: `# [3-1]` 주석 필수
+
 ## 📌 체크리스트
 단계를 마치기 전에 확인:
 - [ ] 코드에 모델/주소 하드코딩 없음
