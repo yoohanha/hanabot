@@ -27,7 +27,12 @@ hanabot/
 ├── apps/                  # 🚀 실행 파일
 │   ├── cli.py             # 커맨드라인 인터페이스
 │   ├── api.py             # FastAPI 서버
-│   └── web/               # 웹 UI
+│   └── run.py             # 단계별 실행 메뉴
+│
+├── web/                   # 🌐 웹 인터페이스 (2부부터)
+│   ├── static/            # HTML, CSS, JavaScript
+│   ├── server.py          # 웹 서버
+│   └── assets/            # 이미지, 폰트 등
 │
 ├── labs/                  # 📝 단계별 연습 코드
 │   ├── 1-1-langchain/     # LangChain 기초

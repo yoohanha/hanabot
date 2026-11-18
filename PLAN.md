@@ -8,7 +8,7 @@
 | **1-2** | RAG 구현 | 문서 검색 + 답변 생성 | `hanabot/rag/`, `data/embeddings/` | 규정 기반 답변 |
 | **1-3** | Fine-tuning | 모델 미세조정, 평가 데이터셋 | `labs/1-3-finetuning/` | 튜닝된 모델, 평가 세트 |
 | **1-4** | LLMOps 기초 | 프롬프트 버전관리, 평가 자동화 | `labs/1-4-llmops/`, 평가 세트 | 품질 게이트 데이터 |
-| **2-1** | RAG 서비스화 | FastAPI 서버, 웹 UI | `apps/api.py`, `apps/web/` | 웹 인터페이스 |
+| **2-1** | RAG 서비스화 | FastAPI 서버, 웹 UI | `apps/api.py`, `web/` | 웹 인터페이스 |
 | **2-2** | LangGraph 워크플로우 | 다단계 작업 흐름 (문의 분류 → 검색 → 답변) | `hanabot/agent/` | 지능형 라우팅 |
 | **2-3** | AI Agent 고급 | 도구 호출, 재귀 추론 | `hanabot/agent/tools.py` | 자율 의사결정 |
 | **2-4** | vLLM 최적화 | 배치 처리, 캐싱, 량자화 | `labs/2-4-vllm/` | 처리량 10배 증가 |
