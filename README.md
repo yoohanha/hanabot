@@ -143,6 +143,7 @@ git log --oneline --graph
 | **stage-1-3** | [1-3] 파인튜닝 완료 (말투 FT + 지식 RAG) | labs/1-3/compare_ft.py, models/hanabot-ft/ | `apps/run.bat` |
 | **stage-1-3** | [1-3] Fine-tuning | labs/1-3-finetuning/, 평가 데이터셋 | `python labs/1-3-finetuning/train.py` |
 | **stage-1-4** | [1-4] LLMOps 완료 (추적 Langfuse · 평가 RAGAS · 프롬프트 버전 관리) | hanabot/rag.py (Langfuse 추적), eval_ragas.py (평가), push_prompt.py (버전 관리) | `python labs/1-4/eval_ragas.py --compare --n 5` |
+| **stage-2-web** | [2부] 하나 AI 학원 홈페이지 껍데기 | web/, FastAPI, RAG_PLAN.md 연결, 하나봇 자리 | `python run.py` → 7번 |
 | **stage-2-1** | [2-1] RAG 서비스 | apps/api.py, FastAPI, 웹 UI | `python apps/api.py` |
 | **stage-2-2** | [2-2] LangGraph | hanabot/agent/workflow.py | `python apps/cli.py --agent` |
 | **stage-2-3** | [2-3] AI Agent | hanabot/agent/tools.py | `python apps/cli.py --agent-advanced` |

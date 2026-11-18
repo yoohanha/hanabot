@@ -181,9 +181,10 @@ def show_menu():
     print("4. RAG 있음/없음 비교")
     print("5. 파인튜닝 비교 (4가지)")
     print("6. 품질 점수 보기 (RAGAS · 5문항)")
+    print("7. 하나 AI 학원 홈페이지 열기")
     print("q. 종료\n")
     print("-" * 60)
-    return input("번호를 입력하세요 (1-6, q) > ").strip()
+    return input("번호를 입력하세요 (1-7, q) > ").strip()
 
 def run_hello_test():
     """Ollama 연결 테스트"""
@@ -280,11 +281,14 @@ def main():
                 print("   그 후 메뉴 5번을 다시 선택하세요.\n")
         elif choice == '6':
             run_command("labs/1-4/eval_ragas.py", "품질 점수 (RAGAS)", args=["--n", "5"])
+        elif choice == '7':
+            # [2부] 하나 AI 학원 홈페이지
+            run_command("web/server.py", "하나 AI 학원 홈페이지")
         elif choice.lower() == 'q':
             print("프로그램을 종료합니다. 👋\n")
             break
         else:
-            print("❌ 잘못된 선택입니다. 1-5 또는 q를 입력하세요.\n")
+            print("❌ 잘못된 선택입니다. 1-7 또는 q를 입력하세요.\n")
 
 if __name__ == "__main__":
     main()
