@@ -74,6 +74,28 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "bge-m3")
 - 가상 학원 데이터라 허용
 - 실제 회사: Langfuse를 사내 서버에 설치
 
+## 🌐 2부 웹 규칙 (Part 2: 홈페이지 껍데기)
+
+### 폴더 격리 원칙
+- **2부 파일 위치**: `web/` 폴더 **안에만**
+  - 프론트엔드: `web/static/` (HTML, CSS, JS)
+  - 백엔드: `web/server.py` (Flask/FastAPI)
+  - 자산: `web/static/assets/` (이미지, 폰트 등)
+
+### 1부 보호 (수정 금지)
+- `hanabot/` - 1부 본체 패키지 (수정 금지)
+- `labs/` - 1부 연습 코드 (수정 금지)
+- `apps/` - 기존 1부 앱 (수정 금지)
+- `data/RAG_PLAN.md` - 읽기만 허용
+
+### 외부 접점 (변경 허용 범위)
+- `run.py` - 2부 메뉴 한 줄 추가만
+- `README.md` - 2부 설명 한 줄 추가만
+
+### 이미지 & 자산 관리
+- **준비된 이미지**: `images/` → `web/static/assets/`로 옮겨 사용
+- **새로운 자산**: `web/static/assets/`에만 추가
+
 ## 📌 체크리스트
 단계를 마치기 전에 확인:
 - [ ] 코드에 모델/주소 하드코딩 없음

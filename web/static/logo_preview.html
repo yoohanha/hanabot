@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>하나 AI 학원 - 로고</title>
+  <link rel="icon" type="image/png" href="assets/mark.png">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      background-color: var(--color-cream);
+    }
+
+    .logo-container {
+      text-align: center;
+    }
+
+    .logo-section {
+      margin-bottom: 60px;
+    }
+
+    .logo-section h3 {
+      color: var(--color-text-light);
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 20px;
+    }
+
+    .logo-horizontal {
+      max-width: 300px;
+      margin: 0 auto 40px;
+    }
+
+    .logo-horizontal img {
+      width: 100%;
+      height: auto;
+    }
+
+    .logo-mark-container {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .mark-box {
+      width: 60px;
+      height: 60px;
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: var(--color-white);
+    }
+
+    .mark-box img {
+      width: 100%;
+      height: auto;
+    }
+
+    .info {
+      margin-top: 60px;
+      color: var(--color-text-light);
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+  <div class="logo-container">
+    <!-- 가로형 로고 -->
+    <div class="logo-section">
+      <h3>Horizontal Logo</h3>
+      <div class="logo-horizontal">
+        <img src="assets/logo.png" alt="하나 AI 학원 로고">
+      </div>
+    </div>
+
+    <!-- 마크만 -->
+    <div class="logo-section">
+      <h3>Mark Only</h3>
+      <div class="logo-mark-container">
+        <div class="mark-box">
+          <img src="assets/mark.png" alt="하나 AI 학원 마크">
+        </div>
+        <div class="mark-box" style="width: 40px; height: 40px;">
+          <img src="assets/mark.png" alt="하나 AI 학원 마크 (작음)">
+        </div>
+        <div class="mark-box" style="width: 32px; height: 32px;">
+          <img src="assets/mark.png" alt="하나 AI 학원 마크 (파비콘)">
+        </div>
+      </div>
+    </div>
+
+    <div class="info">
+      <p>파비콘: mark.png (32×32)</p>
+      <p>색상 체계: 크림 #FDF9F6 | 로즈 #B44560</p>
+    </div>
+  </div>
+</body>
+</html>
