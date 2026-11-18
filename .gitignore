@@ -49,8 +49,11 @@ Thumbs.db
 data/embeddings/
 data/models/
 data/vectors/
+models/
+*.gguf
 logs/
 *.log
+results/
 labs/*/output/
 labs/*/__pycache__/
 .omc/

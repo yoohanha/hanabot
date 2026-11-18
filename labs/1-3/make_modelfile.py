@@ -3,6 +3,11 @@ import sys
 import os
 import glob
 from pathlib import Path
+
+# UTF-8 인코딩 설정
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from hanabot.config import OLLAMA_BASE_URL
