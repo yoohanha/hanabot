@@ -59,3 +59,7 @@ labs/*/__pycache__/
 .omc/
 web/data/consults.json
 web/data/*.json
+
+# 프로젝트 임시 파일
+test_langfuse.py
+MCP 설치순서.txt

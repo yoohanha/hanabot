@@ -105,10 +105,21 @@ pip install -r requirements.txt
 ```
 
 ### 4️⃣ 첫 실행
+
+**콘솔에서 실행:**
 ```bash
-# 현재 단계에 따라 실행
-# [1-1] python apps/cli.py
-# [2-1] python apps/api.py
+# 메뉴식 실행 (추천)
+python run.py
+# → 메뉴 1번: 환경 확인 (인사말 테스트)
+# → 메뉴 7번: 웹 홈페이지 열기
+```
+
+**웹 기반 실행:**
+```bash
+# Windows: web 폴더 아래 webrun.bat 더블클릭
+# 또는 콘솔에서:
+python web/server.py
+# → http://localhost:8080 접속
 ```
 
 ---
