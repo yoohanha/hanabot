@@ -1,5 +1,17 @@
 /* [2-1] 하나 AI 학원 웹 상호작용 */
 
+// [3-3] 마크다운을 HTML로 변환
+function markdownToHtml(text) {
+  if (!text) return '';
+  // ** 굵게 ** → <strong>
+  text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  // - 목록 → • (단락 내)
+  text = text.replace(/^- /gm, '• ');
+  // \n\n → </p><p> (단락 나누기)
+  const lines = text.split('\n\n');
+  return lines.map(p => '<p>' + p.replace(/\n/g, '<br>') + '</p>').join('');
+}
+
 // [2-1] 시간표 데이터 (API에서 로드)
 // [3-1] 새 커리큘럼 적용
 let SCHEDULE_DATA = {

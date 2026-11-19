@@ -378,33 +378,79 @@
 
   <script src="script.js"></script>
   <script>
-    // 과목 데이터 (수-금)
-    const advancedCourses = [
-      { name: 'Private LLM', desc: 'Ollama·RAG·파인튜닝·LLMOps', day: '수', time: '09:30-17:00' },
-      { name: 'AI 에이전트', desc: '챗봇에 도구(손발) 붙이기·MCP', day: '목', time: '09:30-17:00' },
-      { name: '에이전틱 AI', desc: '스스로 계획하고 협업·LangGraph', day: '금', time: '09:30-17:00' },
-      { name: 'AI 윤리와 보안', desc: '데이터 유출·책임 있는 사용', day: '금', time: '오후' }
-    ];
+    // [3-3] 과목 이모지 맵
+    const courseEmojis = {
+      'Private LLM': '🔒',
+      'AI 에이전트': '🤖',
+      '에이전틱 AI': '🧩',
+      'AI 윤리와 보안': '🛡️'
+    };
 
-    // 과목 카드 렌더링
-    document.addEventListener('DOMContentLoaded', function() {
-      const container = document.getElementById('courseCards');
-      advancedCourses.forEach((course, idx) => {
-        const card = document.createElement('div');
-        card.className = 'course-card';
-        card.innerHTML = `
-          <div class="course-card-title">
-            <span class="course-card-number">${idx + 1}</span>
-            ${course.name}
-          </div>
-          <div class="course-card-desc">${course.desc}</div>
-          <div class="course-card-time">
-            <span class="course-card-time-day">${course.day}</span>
-            ${course.time}
-          </div>
-        `;
-        container.appendChild(card);
-      });
+    // [3-3] 과정 데이터 로드 (RAG_PLAN.md에서)
+    document.addEventListener('DOMContentLoaded', async function() {
+      try {
+        const response = await fetch('/api/docs');
+        const docs = await response.json();
+
+        if (!docs['학원 소개'] || !docs['학원 소개']['실무반']) {
+          throw new Error('실무반 데이터를 찾을 수 없습니다');
+        }
+
+        const advancedText = docs['학원 소개']['실무반'];
+        const lines = advancedText.split('\n');
+
+        // 첫 문장 (한 줄 소개)
+        const intro = lines[0];
+
+        // 과목 추출 (- ** 형식)
+        const courses = [];
+
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].startsWith('- **')) {
+            const match = lines[i].match(/- \*\*(.+?)\*\*: (.+)/);
+            if (match) {
+              const name = match[1];
+              const desc = match[2];
+              // 요일 찾기
+              let day = '';
+              if (name.includes('Private LLM') && !name.includes('②')) day = '수';
+              else if (name.includes('Private LLM ②')) day = '목';
+              else if (name.includes('AI 에이전트')) day = '목';
+              else if (name.includes('에이전틱')) day = '금';
+              else if (name.includes('AI 윤리')) day = '금';
+
+              courses.push({
+                name: name,
+                desc: desc,
+                day: day,
+                emoji: courseEmojis[name] || '📚'
+              });
+            }
+          }
+        }
+
+        // 과목 카드 렌더링
+        const container = document.getElementById('courseCards');
+        courses.forEach((course, idx) => {
+          const card = document.createElement('div');
+          card.className = 'course-card';
+          card.innerHTML = `
+            <div class="course-card-title">
+              <span class="course-card-number">${idx + 1}</span>
+              <span>${course.emoji}</span>
+              ${course.name}
+            </div>
+            <div class="course-card-desc">${course.desc}</div>
+            <div class="course-card-time">
+              <span class="course-card-time-day">[${course.day}]</span>
+            </div>
+          `;
+          container.appendChild(card);
+        });
+      } catch (error) {
+        console.error(error);
+        document.getElementById('courseCards').innerHTML = `<div style="color: red; padding: 20px;">데이터를 불러올 수 없습니다.</div>`;
+      }
     });
   </script>
 </body>

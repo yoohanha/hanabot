@@ -1059,15 +1059,15 @@
           // 제목 설정
           document.getElementById('pageTitle').textContent = section || title;
 
-          // 섹션이 없으면 모든 내용 표시
+          // [3-3] 섹션이 없으면 모든 내용 표시 (마크다운 변환)
           if (!section) {
             let content = '';
             for (const [key, value] of Object.entries(docs[title])) {
-              content += `<h2>${key}</h2><p>${value}</p>`;
+              content += `<h2>${key}</h2>${markdownToHtml(value)}`;
             }
             document.getElementById('pageBody').innerHTML = content;
           } else if (docs[title][section]) {
-            document.getElementById('pageBody').innerHTML = `<h2>${section}</h2><p>${docs[title][section]}</p>`;
+            document.getElementById('pageBody').innerHTML = `<h2>${section}</h2>${markdownToHtml(docs[title][section])}`;
           } else {
             throw new Error(`"${section}" 항목을 찾을 수 없습니다.`);
           }
@@ -1081,12 +1081,10 @@
         if (pages[pageId]) {
           document.getElementById('pageTitle').textContent = pageId;
 
-          // 모든 소제목 내용 표시
+          // [3-3] 모든 소제목 내용 표시 (마크다운 변환)
           let content = '';
           for (const [key, value] of Object.entries(pages[pageId])) {
-            // 마크다운 줄 바꿈을 HTML <br>로 변환
-            const htmlContent = value.replace(/\n\n/g, '<br><br>').replace(/\n- /g, '<br>• ').replace(/\n/g, '<br>');
-            content += `<h2>${key}</h2><div>${htmlContent}</div>`;
+            content += `<h2>${key}</h2>${markdownToHtml(value)}`;
           }
           document.getElementById('pageBody').innerHTML = content;
           return;
