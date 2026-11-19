@@ -912,65 +912,39 @@
       updateFee();
     }
 
-    // [3-3] 마크다운 HTML 변환 (로컬 정의)
-    function markdownToHtmlLocal(text) {
-      if (!text) return '';
-      text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-      text = text.replace(/^- /gm, '• ');
-      const lines = text.split('\n\n');
-      return lines.map(p => '<p>' + p.replace(/\n/g, '<br>') + '</p>').join('');
-    }
-
     // [3-3] 과정 테이블 렌더링 (기초반/실무반)
     async function renderCourseTable(courseType) {
       document.getElementById('pageTitle').textContent = courseType === '기초반' ? '기초반 (4주)' : '실무반 (8주)';
 
+      // 과목 데이터 정의
+      const courseData = {
+        '기초반': {
+          intro: '하나 AI 학원의 기초반은 4주 과정이며, 외부 AI와 로컬 LLM의 기초를 배웁니다.',
+          courses: [
+            { emoji: '🧠', name: 'AI 기본 소양', desc: '파이썬·머신러닝·딥러닝·기초 수학' },
+            { emoji: '✨', name: '생성형 AI 활용', desc: 'ChatGPT·Claude·Gemini 업무에 쓰기' },
+            { emoji: '💬', name: '프롬프트 엔지니어링', desc: '좋은 질문 구조·역할·예시·형식' },
+            { emoji: '💻', name: '바이브 코딩', desc: '말로 지시해 코드·앱 만들기' },
+            { emoji: '⚙️', name: '업무 자동화·ERP', desc: '반복 업무 자동화·ERP 데이터 분석·보고서' }
+          ]
+        },
+        '실무반': {
+          intro: '하나 AI 학원의 실무반은 8주 과정이며, 직접 AI를 만들고 운영하는 실무를 배웁니다.',
+          courses: [
+            { emoji: '🔒', name: 'Private LLM', desc: 'Ollama·RAG·파인튜닝·LLMOps' },
+            { emoji: '🤖', name: 'AI 에이전트', desc: '챗봇에 도구(손발) 붙이기·MCP' },
+            { emoji: '🧩', name: '에이전틱 AI', desc: '스스로 계획하고 협업·LangGraph' },
+            { emoji: '🛡️', name: 'AI 윤리와 보안', desc: '데이터 유출·책임 있는 사용' }
+          ]
+        }
+      };
+
       try {
-        const response = await fetch('/api/docs');
-        const docs = await response.json();
-
-        if (!docs['학원 소개'] || !docs['학원 소개'][courseType]) {
-          throw new Error(`${courseType} 데이터를 찾을 수 없습니다`);
-        }
-
-        const courseText = docs['학원 소개'][courseType];
-        const lines = courseText.split('\n').filter(l => l.trim());
-
-        // 첫 문장 (소개) - 마크다운 변환
-        const intro = markdownToHtmlLocal(lines[0]);
-
-        // 과목 추출
-        const courses = [];
-        const courseEmojis = {
-          'AI 기본 소양': '🧠',
-          '생성형 AI 활용': '✨',
-          '프롬프트 엔지니어링': '💬',
-          '바이브 코딩': '💻',
-          '업무 자동화·ERP': '⚙️',
-          'Private LLM': '🔒',
-          'AI 에이전트': '🤖',
-          '에이전틱 AI': '🧩',
-          'AI 윤리와 보안': '🛡️'
-        };
-
-        for (let i = 1; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (line.startsWith('- **')) {
-            const match = line.match(/- \*\*(.+?)\*\*:\s*(.+)/);
-            if (match) {
-              const name = match[1].trim();
-              const desc = match[2].trim();
-              courses.push({
-                name: name,
-                desc: desc,
-                emoji: courseEmojis[name] || '📚'
-              });
-            }
-          }
-        }
+        const data = courseData[courseType];
+        if (!data) throw new Error(`${courseType} 데이터가 없습니다`);
 
         // HTML 테이블 생성
-        let html = `<div style="margin-bottom: 20px; color: var(--color-text); font-size: 16px;">${intro}</div>`;
+        let html = `<p style="margin-bottom: 20px; color: var(--color-text); font-size: 16px;">${data.intro}</p>`;
         html += `<div style="overflow-x: auto;">
           <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--color-border); margin-bottom: 20px;">
             <thead>
@@ -982,17 +956,13 @@
             </thead>
             <tbody>`;
 
-        if (courses.length > 0) {
-          courses.forEach((course, idx) => {
-            html += `<tr style="border: 1px solid var(--color-border); ${idx % 2 === 1 ? 'background-color: #f9f9f9;' : ''}">
-              <td style="padding: 12px; text-align: center; border: 1px solid var(--color-border); font-weight: bold;">${idx + 1}</td>
-              <td style="padding: 12px; border: 1px solid var(--color-border);"><strong>${course.emoji} ${course.name}</strong></td>
-              <td style="padding: 12px; border: 1px solid var(--color-border);">${course.desc}</td>
-            </tr>`;
-          });
-        } else {
-          html += `<tr><td colspan="3" style="padding: 12px; text-align: center; color: var(--color-text-light);">과목 데이터를 불러올 수 없습니다.</td></tr>`;
-        }
+        data.courses.forEach((course, idx) => {
+          html += `<tr style="border: 1px solid var(--color-border); ${idx % 2 === 1 ? 'background-color: #f9f9f9;' : ''}">
+            <td style="padding: 12px; text-align: center; border: 1px solid var(--color-border); font-weight: bold;">${idx + 1}</td>
+            <td style="padding: 12px; border: 1px solid var(--color-border);"><strong>${course.emoji} ${course.name}</strong></td>
+            <td style="padding: 12px; border: 1px solid var(--color-border);">${course.desc}</td>
+          </tr>`;
+        });
 
         html += `</tbody></table></div>`;
 
@@ -1005,7 +975,7 @@
         document.getElementById('pageBody').innerHTML = html;
       } catch (error) {
         console.error('Course table error:', error);
-        document.getElementById('pageBody').innerHTML = `<div class="error">데이터를 불러올 수 없습니다: ${error.message}</div>`;
+        document.getElementById('pageBody').innerHTML = `<div class="error">오류: ${error.message}</div>`;
       }
     }
 
@@ -1175,6 +1145,18 @@
             document.getElementById('pageBody').innerHTML = content;
           } else if (docs[title][section]) {
             document.getElementById('pageBody').innerHTML = `<h2>${section}</h2>${markdownToHtml(docs[title][section])}`;
+
+            // [3-3] pages.md에 같은 pageId가 있으면 추가 렌더링
+            const pagesResponse = await fetch('/api/pages');
+            const pages = await pagesResponse.json();
+
+            if (pages[pageId]) {
+              let additionalContent = '';
+              for (const [key, value] of Object.entries(pages[pageId])) {
+                additionalContent += `<h2>${key}</h2>${markdownToHtml(value)}`;
+              }
+              document.getElementById('pageBody').innerHTML += additionalContent;
+            }
           } else {
             throw new Error(`"${section}" 항목을 찾을 수 없습니다.`);
           }
