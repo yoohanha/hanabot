@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>실무반 · 하나 AI 학원</title>
+  <meta name="description" content="8주 과정, 직접 AI를 만들고 운영하기">
+  <link rel="icon" type="image/png" href="assets/mark.png">
+  <link rel="stylesheet" href="style.css">
+  <style>
+    .course-hero {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      padding: 60px 20px;
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    .course-hero h1 {
+      font-size: 48px;
+      margin: 0 0 10px 0;
+    }
+
+    .course-hero p {
+      font-size: 18px;
+      margin: 0;
+      opacity: 0.9;
+    }
+
+    .course-info {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 50px;
+      padding: 0 20px;
+      max-width: 1200px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .info-box {
+      background: #f5f5f5;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+      border-left: 4px solid #f5576c;
+    }
+
+    .info-box-label {
+      font-size: 12px;
+      color: #999;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+
+    .info-box-value {
+      font-size: 24px;
+      font-weight: bold;
+      color: #333;
+    }
+
+    .courses-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 20px 50px 20px;
+    }
+
+    .courses-container h2 {
+      text-align: center;
+      margin-bottom: 40px;
+      font-size: 32px;
+    }
+
+    .course-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 25px;
+      margin-bottom: 50px;
+    }
+
+    .course-card {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 25px;
+      transition: all 0.3s;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .course-card:hover {
+      border-color: #f5576c;
+      box-shadow: 0 8px 20px rgba(245, 87, 108, 0.15);
+      transform: translateY(-5px);
+    }
+
+    .course-card-title {
+      font-size: 20px;
+      font-weight: bold;
+      color: #333;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .course-card-number {
+      display: inline-block;
+      width: 28px;
+      height: 28px;
+      background: #f5576c;
+      color: white;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 28px;
+      font-size: 14px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .course-card-desc {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 15px;
+    }
+
+    .course-card-time {
+      font-size: 13px;
+      color: #999;
+      padding-top: 15px;
+      border-top: 1px solid #eee;
+    }
+
+    .course-card-time-day {
+      font-weight: bold;
+      color: #f5576c;
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    .action-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      padding-bottom: 40px;
+    }
+
+    .btn-enroll {
+      background: #f5576c;
+      color: white;
+      padding: 15px 40px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: all 0.3s;
+    }
+
+    .btn-enroll:hover {
+      background: #e63c52;
+      transform: scale(1.05);
+    }
+
+    .btn-schedule {
+      background: white;
+      color: #f5576c;
+      padding: 15px 40px;
+      border: 2px solid #f5576c;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: all 0.3s;
+    }
+
+    .btn-schedule:hover {
+      background: #fff5f7;
+    }
+
+    .back-link {
+      display: inline-block;
+      margin-top: 20px;
+      color: #f5576c;
+      text-decoration: none;
+      font-size: 14px;
+    }
+
+    .back-link:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 600px) {
+      .course-hero h1 {
+        font-size: 32px;
+      }
+
+      .course-info {
+        grid-template-columns: 1fr;
+      }
+
+      .action-buttons {
+        flex-direction: column;
+      }
+
+      .btn-enroll, .btn-schedule {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- 헤더 -->
+  <header id="header" class="header">
+    <div class="container header-content">
+      <div class="logo">
+        <a href="index.html"><img src="assets/logo.png" alt="하나 AI 학원"></a>
+      </div>
+      <button class="hamburger" id="hamburger">
+        <span></span>
+        <span></span>
+        <span></span>
+      </button>
+      <nav class="nav" id="nav">
+        <div class="nav-item">
+          <button class="nav-title">학원 소개</button>
+          <div class="dropdown">
+            <a href="page.html?id=학원소개">하나 AI 학원은</a>
+            <a href="page.html?id=운영시간">운영 시간</a>
+            <a href="page.html?id=오시는길">오시는 길</a>
+          </div>
+        </div>
+        <div class="nav-item">
+          <button class="nav-title">교육 과정</button>
+          <div class="dropdown">
+            <a href="course-basic.html">기초반 (4주)</a>
+            <a href="course-advanced.html" class="active">실무반 (8주)</a>
+            <a href="page.html?id=시간표">시간표</a>
+          </div>
+        </div>
+        <div class="nav-item">
+          <button class="nav-title">수강 안내</button>
+          <div class="dropdown">
+            <a href="page.html?id=출석">출석</a>
+            <a href="page.html?id=수료규정">수료 규정</a>
+            <a href="page.html?id=결석">결석</a>
+            <a href="page.html?id=병결">병결</a>
+            <a href="page.html?id=수강료">수강료</a>
+            <a href="page.html?id=할인">할인</a>
+            <a href="page.html?id=환불규정">환불 규정</a>
+          </div>
+        </div>
+        <div class="nav-item">
+          <button class="nav-title">학원 생활</button>
+          <div class="dropdown">
+            <a href="page.html?id=실습실이용">실습실 이용</a>
+            <a href="page.html?id=GPU예약">GPU PC 예약</a>
+            <a href="page.html?id=보안">보안</a>
+            <a href="page.html?id=AI사용규칙">AI 사용 규칙</a>
+            <a href="page.html?id=분실물">분실물</a>
+          </div>
+        </div>
+        <div class="nav-item">
+          <button class="nav-title">커뮤니티</button>
+          <div class="dropdown">
+            <a href="page.html?id=공지사항">공지사항</a>
+            <a href="page.html?id=FAQ">자주 묻는 질문</a>
+            <a href="page.html?id=하나봇">하나봇에게 묻기</a>
+          </div>
+        </div>
+      </nav>
+      <div class="header-right">
+        <button class="btn btn-primary btn-hanabot">🤖 하나봇에게 묻기</button>
+        <button class="btn btn-login">로그인</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- 히어로 섹션 -->
+  <section class="course-hero">
+    <h1>실무반</h1>
+    <p>8주 과정 · 직접 AI를 만들고 운영하기</p>
+  </section>
+
+  <!-- 기본 정보 -->
+  <div class="course-info">
+    <div class="info-box">
+      <div class="info-box-label">기간</div>
+      <div class="info-box-value">8주</div>
+    </div>
+    <div class="info-box">
+      <div class="info-box-label">수업 요일</div>
+      <div class="info-box-value">월-금</div>
+    </div>
+    <div class="info-box">
+      <div class="info-box-label">수업 시간</div>
+      <div class="info-box-value">월-화 14:00<br>수-금 09:30</div>
+    </div>
+    <div class="info-box">
+      <div class="info-box-label">수강료</div>
+      <div class="info-box-value">월 50만 원</div>
+    </div>
+  </div>
+
+  <!-- 과목 카드 -->
+  <div class="courses-container">
+    <h2>4개 심화 과목</h2>
+    <div class="course-cards" id="courseCards">
+      <!-- JavaScript에서 로드됨 -->
+    </div>
+
+    <!-- 액션 버튼 -->
+    <div class="action-buttons">
+      <a href="page.html?id=수강신청" class="btn-enroll">🎓 수강 신청하기</a>
+      <a href="page.html?id=시간표" class="btn-schedule">📅 시간표 보기</a>
+    </div>
+
+    <div style="text-align: center;">
+      <a href="index.html" class="back-link">← 메인으로 돌아가기</a>
+    </div>
+  </div>
+
+  <!-- 채팅 모달 & 기타 UI -->
+  <div class="chat-modal" id="chatModal">
+    <div class="chat-container">
+      <div class="chat-header">
+        <div class="chat-title-box">
+          <img src="assets/mark.png" alt="하나봇" class="chat-icon">
+          <span class="chat-title">하나봇</span>
+        </div>
+        <button class="chat-close" id="chatClose">✕</button>
+      </div>
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-message bot">
+          <div class="message-content">안녕하세요! 실무반에 대해 물어보세요.</div>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <input type="text" class="chat-input" id="chatInput" placeholder="질문을 입력하세요..." autocomplete="off">
+        <button class="chat-send" id="chatSend">전송</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="floating-buttons">
+    <button class="float-btn main-btn" id="floatHanabot" title="하나봇에게 묻기">
+      <img src="assets/mark.png" alt="하나봇">
+    </button>
+    <button class="float-btn" id="floatConsult" title="상담 신청">📞</button>
+    <button class="float-btn" id="floatFaq" title="FAQ">❓</button>
+    <button class="float-btn" id="floatTop" title="맨 위로">⬆️</button>
+  </div>
+
+  <footer id="footer" class="footer">
+    <div class="container footer-content">
+      <div class="footer-logo">
+        <img src="assets/mark.png" alt="하나 AI 학원" class="footer-mark">
+      </div>
+      <div class="footer-info">
+        <h3>하나 AI 학원</h3>
+        <p><strong>운영 시간</strong>: 평일 09:00 ~ 21:00</p>
+        <p><strong>상담 시간</strong>: 평일 10:00 ~ 18:00</p>
+        <p><strong>주소</strong>: 서울시 강남구 테헤란로 123</p>
+        <p><strong>전화</strong>: 02-1234-5678 | <strong>이메일</strong>: info@hanaacademy.kr</p>
+      </div>
+      <div class="footer-notice">
+        <p>⚠️ <em>이 사이트는 수업용 가상 학원입니다.</em></p>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <p>&copy; 2026 하나 AI 학원. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+  <script>
+    // 과목 데이터 (수-금)
+    const advancedCourses = [
+      { name: 'Private LLM', desc: 'Ollama·RAG·파인튜닝·LLMOps', day: '수', time: '09:30-17:00' },
+      { name: 'AI 에이전트', desc: '챗봇에 도구(손발) 붙이기·MCP', day: '목', time: '09:30-17:00' },
+      { name: '에이전틱 AI', desc: '스스로 계획하고 협업·LangGraph', day: '금', time: '09:30-17:00' },
+      { name: 'AI 윤리와 보안', desc: '데이터 유출·책임 있는 사용', day: '금', time: '오후' }
+    ];
+
+    // 과목 카드 렌더링
+    document.addEventListener('DOMContentLoaded', function() {
+      const container = document.getElementById('courseCards');
+      advancedCourses.forEach((course, idx) => {
+        const card = document.createElement('div');
+        card.className = 'course-card';
+        card.innerHTML = `
+          <div class="course-card-title">
+            <span class="course-card-number">${idx + 1}</span>
+            ${course.name}
+          </div>
+          <div class="course-card-desc">${course.desc}</div>
+          <div class="course-card-time">
+            <span class="course-card-time-day">${course.day}</span>
+            ${course.time}
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    });
+  </script>
+</body>
+</html>
