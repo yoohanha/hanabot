@@ -22,6 +22,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 # [3-1] 하나봇 RAG 임포트
 from hanabot.rag import answer_question, get_vector_store
+# [3-3] 웹 서비스 임포트
+from web.services import create_consult
 
 # .env 로드
 load_dotenv()
@@ -256,6 +258,19 @@ async def chat(request_body: dict):
     reply, sources = await loop.run_in_executor(executor, answer_question, message)
 
     return {'reply': reply, 'sources': sources}
+
+
+# [3-3] 상담 신청 엔드포인트
+@app.post('/api/consult')
+async def api_consult(request_body: dict):
+    """상담 신청을 받고 저장"""
+    student_id = request_body.get('student_id', '')
+    course = request_body.get('course', '')
+    desired_time = request_body.get('desired_time', '')
+    inquiry = request_body.get('inquiry', '')
+
+    result = create_consult(student_id, course, desired_time, inquiry)
+    return JSONResponse(result)
 
 
 # [2-1] 정적 파일 제공
