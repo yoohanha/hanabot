@@ -4,9 +4,9 @@
 
 > 사용자가 직접 묻는 질문에 대해 학습된 문서에서 근거를 찾아 정확한 답변을 제공합니다.
 
-| 홈페이지 | 하나봇 채팅 | 학원소개 |
-|---------|-----------|--------|
-| ![Homepage]() | ![Chatbot]() | ![About]() |
+| 홈페이지 | 하나봇 채팅 |
+|---------|-----------|
+| ![Homepage](docs/images/hompage.png) | ![Chatbot](docs/images/hanabot_answer.png) |
 
 ---
 
