@@ -1,5 +1,54 @@
 /* [2-1] 하나 AI 학원 웹 상호작용 */
 
+// [3-3] 모든 페이지에 채팅 UI 자동 생성
+function initializeChatUI() {
+  // 이미 있으면 스킵
+  if (document.getElementById('chatModal')) return;
+
+  // 채팅 모달 생성
+  const chatModalHtml = `
+    <div class="chat-modal" id="chatModal">
+      <div class="chat-container">
+        <div class="chat-header">
+          <div class="chat-title-box">
+            <img src="assets/mark.png" alt="하나봇" class="chat-icon">
+            <span class="chat-title">하나봇</span>
+          </div>
+          <button class="chat-close" id="chatClose">✕</button>
+        </div>
+        <div class="chat-messages" id="chatMessages">
+          <div class="chat-message bot">
+            <div class="message-content">안녕하세요! 하나 AI 학원 규정을 물어보세요.</div>
+          </div>
+        </div>
+        <div class="chat-input-area">
+          <input type="text" class="chat-input" id="chatInput" placeholder="질문을 입력하세요..." autocomplete="off">
+          <button class="chat-send" id="chatSend">전송</button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  // 떠 있는 버튼 생성
+  const floatingButtonsHtml = `
+    <div class="floating-buttons">
+      <button class="float-btn main-btn" id="floatHanabot" title="하나봇에게 묻기">
+        <img src="assets/mark.png" alt="하나봇">
+      </button>
+      <button class="float-btn" id="floatConsult" title="상담 신청">📞</button>
+      <button class="float-btn" id="floatFaq" title="FAQ">❓</button>
+      <button class="float-btn" id="floatTop" title="맨 위로">⬆️</button>
+    </div>
+  `;
+
+  // HTML 추가
+  document.body.insertAdjacentHTML('beforeend', chatModalHtml);
+  document.body.insertAdjacentHTML('beforeend', floatingButtonsHtml);
+}
+
+// [3-3] 초기화 시 UI 생성
+initializeChatUI();
+
 // [3-3] 마크다운을 HTML로 변환
 function markdownToHtml(text) {
   if (!text) return '';
@@ -268,11 +317,7 @@ function initializeFloatingButtons() {
   const floatFaq = document.getElementById('floatFaq');
   const floatTop = document.getElementById('floatTop');
 
-  if (floatHanabot) {
-    floatHanabot.addEventListener('click', function() {
-      window.location.href = 'page.html?id=하나봇';
-    });
-  }
+  // [3-3] floatHanabot은 initializeChat에서 처리
 
   if (floatConsult) {
     floatConsult.addEventListener('click', function() {
@@ -319,7 +364,13 @@ function initializeChat() {
     }
   }
 
-  // 메뉴바 "하나봇에게 묻기" 버튼
+  // [3-3] 메뉴바 "하나봇에게 묻기" 버튼 (.btn-hanabot)
+  const btnHanabot = document.querySelector('.btn-hanabot');
+  if (btnHanabot) {
+    btnHanabot.addEventListener('click', toggleChat);
+  }
+
+  // 메뉴 링크 "하나봇에게 묻기"
   const hanabotButtons = document.querySelectorAll('a[href*="?id=하나봇"]');
   hanabotButtons.forEach(btn => {
     btn.addEventListener('click', function(e) {
@@ -328,15 +379,23 @@ function initializeChat() {
     });
   });
 
-  // 떠 있는 하나봇 버튼
-  document.getElementById('floatHanabot').addEventListener('click', toggleChat);
+  // [3-3] 떠 있는 하나봇 버튼
+  const floatHanabotBtn = document.getElementById('floatHanabot');
+  if (floatHanabotBtn) {
+    floatHanabotBtn.addEventListener('click', toggleChat);
+  }
 
   // 닫기 버튼
   chatClose.addEventListener('click', toggleChat);
 
-  // 외부 클릭 시 닫기
+  // [3-3] 외부 클릭 시 닫기 (채팅 열기 버튼들은 제외)
   document.addEventListener('click', function(e) {
-    if (!chatModal.contains(e.target) && !e.target.closest('.floating-buttons')) {
+    const isChatArea = chatModal.contains(e.target);
+    const isFloatingBtn = e.target.closest('.floating-buttons');
+    const isHanabotBtn = e.target.closest('.btn-hanabot');
+    const isHanabotLink = e.target.closest('a[href*="?id=하나봇"]');
+
+    if (!isChatArea && !isFloatingBtn && !isHanabotBtn && !isHanabotLink) {
       chatModal.classList.remove('active');
     }
   });

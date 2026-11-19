@@ -471,13 +471,14 @@
   </footer>
 
   <script>
-    // [2-1] 메뉴 이름과 RAG 소제목 짝 맞춤
+    // [3-3] 메뉴 이름과 RAG 소제목 짝 맞춤
     const MENU_MAPPING = {
       '학원소개': { title: '학원 소개', section: '하나 AI 학원은 어떤 곳인가' },
       '운영시간': { title: '학원 소개', section: '운영 시간' },
       '오시는길': { title: '학원 소개', section: '오시는 길' },
       '기초반': { title: '학원 소개', section: '기초반' },
       '실무반': { title: '학원 소개', section: '실무반' },
+      '하나봇': null,  // 채팅창 열기 (page 렌더링 안 함)
       '시간표': { title: '시간표', section: null },
       '출석': { title: '수강 규정', section: '출석 체크' },
       '지각': { title: '수강 규정', section: '지각' },
@@ -1229,6 +1230,25 @@
       // [3-3] 학원소개 특수 처리
       if (pageId === '학원소개') {
         renderSchoolInfo();
+        return;
+      }
+
+      // [3-3] 하나봇 특수 처리 (채팅창 열기)
+      if (pageId === '하나봇') {
+        document.getElementById('pageTitle').textContent = '하나봇에게 묻기';
+        document.getElementById('pageBody').innerHTML = `
+          <div style="text-align: center; padding: 60px 20px;">
+            <p style="font-size: 18px; color: var(--color-text-light); margin-bottom: 20px;">💬 오른쪽 아래의 🤖 버튼을 눌러 하나봇과 대화하세요!</p>
+            <p style="font-size: 14px; color: var(--color-text-light);">학원 규정, 시간표, 비용 등 모든 것을 물어볼 수 있어요.</p>
+          </div>
+        `;
+        // 채팅창 열기
+        const chatModal = document.getElementById('chatModal');
+        if (chatModal) {
+          chatModal.classList.add('active');
+          const chatInput = document.getElementById('chatInput');
+          if (chatInput) chatInput.focus();
+        }
         return;
       }
 
