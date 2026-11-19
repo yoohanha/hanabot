@@ -1,95 +1,91 @@
-# 🤖 하나봇 (HanaBot)
+# 🤖 하나봇 (HanaBot) - 로컬 RAG 챗봇 & 웹 서비스
 
-사내 규정 Q&A 챗봇을 11단계에 걸쳐 차근차근 만드는 **대학 수업 프로젝트**.
+**로컬 LLM으로 사내 규정을 학습해 Q&A 답변하는 RAG 챗봇 + 반응형 웹 서비스**
 
-LangChain, RAG, Fine-tuning, LLMOps부터 Docker, CI/CD, Kubernetes까지 최신 AI 서비스 개발 전체 과정을 배웁니다.
+> 사용자가 직접 묻는 질문에 대해 학습된 문서에서 근거를 찾아 정확한 답변을 제공합니다.
+
+| 홈페이지 | 하나봇 채팅 | 학원소개 |
+|---------|-----------|--------|
+| ![Homepage]() | ![Chatbot]() | ![About]() |
 
 ---
 
-## 📁 폴더 구조
+## 📌 무엇을 만들었나
 
+### **1부: 하나봇 RAG 시스템** (Python CLI)
 ```
-hanabot/
-├── PLAN.md                # 11단계 로드맵
-├── README.md              # 이 파일
-├── CLAUDE.md              # 개발 규칙
-├── .env                   # 환경변수 (git 제외)
-├── .env.example           # 환경변수 템플릿
-├── requirements.txt       # Python 의존성
-│
-├── hanabot/               # 📦 본체 패키지
-│   ├── config.py          # .env에서 설정 로드
-│   ├── llm.py             # LLM 연결 (Ollama)
-│   ├── embeddings.py      # 임베딩 모델
-│   ├── rag/               # RAG 핵심 로직
-│   └── agent/             # AI Agent 로직
-│
-├── apps/                  # 🚀 실행 파일
-│   ├── cli.py             # 커맨드라인 인터페이스
-│   ├── api.py             # FastAPI 서버
-│   └── run.py             # 단계별 실행 메뉴
-│
-├── web/                   # 🌐 웹 인터페이스 (2부부터)
-│   ├── static/            # HTML, CSS, JavaScript
-│   ├── server.py          # 웹 서버
-│   └── assets/            # 이미지, 폰트 등
-│
-├── labs/                  # 📝 단계별 연습 코드
-│   ├── 1-1-langchain/     # LangChain 기초
-│   ├── 1-2-rag/           # RAG 프로토타입
-│   ├── 1-3-finetuning/    # Fine-tuning 실험
-│   ├── 1-4-llmops/        # LLMOps 연습
-│   ├── 2-1-rag-service/   # RAG 서비스화
-│   ├── 2-2-langgraph/     # LangGraph 워크플로우
-│   ├── 2-3-ai-agent/      # AI Agent 고급
-│   ├── 2-4-vllm/          # vLLM 최적화
-│   ├── 2-5-docker/        # Docker 컨테이너화
-│   ├── 2-6-cicd/          # CI/CD 파이프라인
-│   └── 2-7-k8s/           # Kubernetes 배포
-│
-├── data/                  # 📚 문서 & 자료
-│   ├── docs/              # 마크다운 문서
-│   ├── sample_regulations/ # 샘플 사내 규정
-│   └── embeddings/        # 벡터 DB (git 제외)
-│
-├── docker/                # 🐳 Docker 설정 (2-5부터)
-│   ├── Dockerfile
-│   └── docker-compose.yml
-│
-├── k8s/                   # ☸️  Kubernetes 설정 (2-7부터)
-│   ├── deployment.yaml
-│   └── service.yaml
-│
-└── .github/workflows/     # ⚙️ CI/CD (2-6부터)
-    └── ci.yml
+📚 학습 → 🔍 검색 → 🤖 답변
+```
+
+- **RAG (Retrieval-Augmented Generation)**
+  - 임베딩: `bge-m3` (벡터 데이터베이스)
+  - 검색: BM25 + 의미 유사도
+  - LLM: `llama3.1` (Ollama 로컬 실행)
+
+- **Fine-tuning** (말투 개선)
+  - 하나봇의 친근한 말투 학습
+  - 성능 비교: RAG만 vs RAG+Fine-tuning
+
+- **LLMOps** (품질 관리)
+  - Langfuse: 모든 대화 추적 & 로깅
+  - RAGAS: 답변 품질 점수 (Faithfulness, Relevance, Coherence)
+  - 프롬프트 버전 관리
+
+### **2부: 하나 AI 학원 웹사이트** (FastAPI + 바닐라 JS)
+```
+정적 페이지 ← 마크다운 렌더링 ← RAG_PLAN.md
+```
+
+- **동적 페이지**: URL 파라미터로 학원 규정 콘텐츠 렌더링
+- **하나봇 채팅**: 모든 페이지에서 사용 가능 (자동 UI 생성)
+- **신청 기능**: 상담신청, GPU PC 예약, 수강신청 (JSON 저장)
+- **반응형 디자인**: 모바일 최적화 (375px ~ Desktop)
+- **브랜드**: 애니메이션 로고, 마크 이미지
+
+### **연결 구조**
+```
+사용자 질문
+    ↓
+FastAPI /chat 엔드포인트
+    ↓
+hanabot.rag.answer_question()
+    ↓
+1. 임베딩 & 벡터 검색
+2. llama3.1에 프롬프트 전달
+3. Langfuse에 로깅
+    ↓
+웹 화면에 답변 + 근거 표시
 ```
 
 ---
 
-## 🚀 시작하기
+## 🚀 실행 방법
 
-### 1️⃣ 사전 준비
+### **1️⃣ 준비**
+
 ```bash
-# Ollama 설치 및 모델 다운로드
+# Ollama 설치 & 모델 다운로드
 ollama pull llama3.1
 ollama pull bge-m3
 ollama serve
 ```
 
-### 2️⃣ 환경 설정
+### **2️⃣ 환경 설정**
+
 ```bash
-# .env 파일 생성 (템플릿 기반)
+# .env 생성
 cp .env.example .env
 ```
 
-`.env` 내용:
+**`.env` 내용:**
 ```env
 OLLAMA_HOST=http://localhost:11434
 CHAT_MODEL=llama3.1
 EMBED_MODEL=bge-m3
 ```
 
-### 3️⃣ Python 환경
+### **3️⃣ Python 환경**
+
 ```bash
 # 가상환경 생성
 python -m venv .venv
@@ -97,91 +93,143 @@ python -m venv .venv
 # 활성화 (Windows)
 .venv\Scripts\activate
 
-# 활성화 (macOS/Linux)
-source .venv/bin/activate
-
 # 의존성 설치
 pip install -r requirements.txt
 ```
 
-### 4️⃣ 첫 실행
+### **4️⃣ 실행**
 
-**콘솔에서 실행:**
+**콘솔 실행 (추천):**
 ```bash
-# 메뉴식 실행 (추천)
 python run.py
 # → 메뉴 1번: 환경 확인 (인사말 테스트)
+# → 메뉴 2~6: RAG 기능 테스트
 # → 메뉴 7번: 웹 홈페이지 열기
 ```
 
-**웹 기반 실행:**
+**웹만 실행:**
 ```bash
-# Windows: web 폴더 아래 webrun.bat 더블클릭
-# 또는 콘솔에서:
+# Windows: web/webrun.bat 더블클릭
+# 또는 콘솔:
 python web/server.py
 # → http://localhost:8080 접속
 ```
 
 ---
 
-## 📍 단계 이동 방법
+## 🛠️ 사용한 기술
 
-### 특정 단계로 이동
-```bash
-# 예: Stage 1-2로 이동
-git checkout stage-1-2
+| 분야 | 기술 |
+|------|------|
+| **LLM** | Ollama (llama3.1 로컬 실행) |
+| **임베딩** | bge-m3 (벡터 검색) |
+| **RAG** | LangChain, RAGAS, Langfuse |
+| **웹** | FastAPI, 바닐라 JS, CSS3 |
+| **데이터** | Markdown (RAG_PLAN.md), JSON (신청 데이터) |
+| **개발** | Git, Python 3.12, pip |
 
-# 현재 브랜치와 태그 확인
-git branch -v
-git tag -l
+---
+
+## 💡 주요 개발 경험: Claude Code 대표 프롬프트
+
+사용자 요청 → Claude Code가 구현한 결과
+
+### **1️⃣ 커리큘럼 테이블 렌더링**
+> **요청**: "홈페이지 시간표를 실제 커리큘럼으로 바꾸자. 시간표 원본은 data/RAG_PLAN.md"
+>
+> **결과**: 
+> - `page.html`에 과정별 테이블 (기초반 5과목, 실무반 9과목)
+> - 마크다운 → HTML 변환 함수
+> - 월별 시간표 API (`/api/schedule?month=YYYY-MM`)
+
+### **2️⃣ 문법 오류 진단 & 수정**
+> **요청**: "page.html이 모든 페이지에서 '로드 중...'에서 멈춰. 스크립트 문법 오류 때문이야."
+>
+> **결과**:
+> - 996줄 Template Literal 닫힘 오류 발견
+> - `</style>;` 세미콜론 제거 (backtick 조기 종료 원인)
+> - 모든 동적 페이지 정상 작동
+
+### **3️⃣ 학원소개 페이지 완성**
+> **요청**: "'하나 AI 학원은 어떤 곳인가' 페이지가 준비 중으로 비어 있어. 채워줘. (1. 원인 확인 2. 내용 작성 3. 디자인)"
+>
+> **결과**:
+> - 강사소개, 9개 과목 설명, 수료 조건
+> - 카드 레이아웃, 마크다운 렌더링
+> - 애니메이션: 로고 부유, 워터마크 효과
+
+### **4️⃣ 하나봇 채팅 모든 페이지 적용**
+> **요청**: "홈페이지 🤖 하나봇이 안 열려. 서버 /chat은 정상이고, 화면 쪽 문제야. (5개 항목 수정)"
+>
+> **결과**:
+> - `initializeChatUI()`: 없는 페이지에 자동 생성
+> - `escapeHtml()`: XSS 방지
+> - 외부 클릭 시 닫기 (버튼은 제외)
+> - 모바일 풀스크린 모드
+> - 근거 링크 (`page.html?id=...&section=...`)
+
+### **5️⃣ 브랜드 이미지 적용 & 애니메이션**
+> **요청**: "web/static/assets/hana_brand_board.png를 이용해서 화면을 꾸며줘. (3개 화면에 로고, 아이콘, 마크)"
+>
+> **결과**:
+> - Pillow로 이미지 자동 크롭 (2080×1300 → 1040×650 × 4)
+> - 투명 배경 처리 (`mark_glass.png`)
+> - CSS 애니메이션: `@keyframes float-mark`, `logo-bg`
+> - 모션 감소 모드 대응 (`@media prefers-reduced-motion`)
+
+---
+
+## 📝 주의사항
+
+> ⚠️ **하나 AI 학원은 수업용 가상 학원입니다.**
+>
+> 실제 존재하지 않으며, 교육 목적으로만 사용합니다.
+> - 학번: `HANA-001` (가상)
+> - 주소: "서울시 강남구 테헤란로 123" (가상)
+> - 전화: "02-1234-5678" (가상)
+
+---
+
+## 📂 파일 구조
+
+```
+hanabot/
+├── hanabot/              # RAG 코어 패키지
+│   ├── config.py         # 환경변수 로드
+│   ├── rag.py            # RAG 로직 (임베딩, 검색, LLM)
+│   └── ...
+├── web/                  # 웹 서비스
+│   ├── server.py         # FastAPI 서버
+│   ├── services.py       # 비즈니스 로직 (신청, 예약)
+│   ├── static/           # HTML, CSS, JS
+│   │   ├── index.html    # 홈페이지
+│   │   ├── page.html     # 동적 페이지 (규정, 과정)
+│   │   ├── admin.html    # 관리자 화면
+│   │   └── assets/       # 이미지, 로고
+│   └── data/
+│       ├── pages.md      # 웹 콘텐츠 (규정 외)
+│       ├── consults.json # 상담신청 기록
+│       ├── enrolls.json  # 수강신청 기록
+│       └── reserves.json # GPU PC 예약 기록
+├── data/
+│   └── RAG_PLAN.md       # 학원 규정 (RAG 학습 자료)
+├── labs/                 # 단계별 실습 코드
+├── PLAN.md               # 11단계 개발 로드맵
+└── run.py                # 메인 메뉴
 ```
 
-### 단계별 변경 내역
-각 단계를 시작하기 전에 커밋 로그 확인:
-```bash
-git log --oneline --graph
-```
+---
+
+## 🎓 배운 개념
+
+- **RAG**: 문서 기반 답변 생성
+- **임베딩**: 의미 유사도 검색 (벡터 DB)
+- **Fine-tuning**: 모델 성격 커스터마이징
+- **LLMOps**: 프로덕션 AI 시스템 운영
+- **FastAPI**: 비동기 웹 프레임워크
+- **Markdown**: 웹 콘텐츠 관리
 
 ---
 
-## 📋 단계별 변경 내역
+**더 보기**: [`docs/demo.md`](docs/demo.md) - 3분 시연 순서
 
-| 단계 | 커밋 메시지 | 주요 추가 | 실행 방법 |
-|------|-----------|---------|---------|
-| **stage-0** | [Stage-0] 프로젝트 초기 설정 | CLAUDE.md, .gitignore, PLAN.md, README.md | - |
-| **stage-1-1** | [1-1] LangChain 기초 | hanabot/llm.py, apps/cli.py | `python apps/cli.py` |
-| **stage-1-2** | [1-2] RAG 구현 완료 (RAG_PLAN.md 기반) | hanabot/rag.py, apps/chat*.py, apps/compare.py | `apps/run.bat` |
-| **stage-1-3** | [1-3] 파인튜닝 완료 (말투 FT + 지식 RAG) | labs/1-3/compare_ft.py, models/hanabot-ft/ | `apps/run.bat` |
-| **stage-1-3** | [1-3] Fine-tuning | labs/1-3-finetuning/, 평가 데이터셋 | `python labs/1-3-finetuning/train.py` |
-| **stage-1-4** | [1-4] LLMOps 완료 (추적 Langfuse · 평가 RAGAS · 프롬프트 버전 관리) | hanabot/rag.py (Langfuse 추적), eval_ragas.py (평가), push_prompt.py (버전 관리) | `python labs/1-4/eval_ragas.py --compare --n 5` |
-| **stage-2-web** | [2부] 하나 AI 학원 홈페이지 껍데기 | web/, FastAPI, RAG_PLAN.md 연결, 하나봇 자리 | `python run.py` → 7번 |
-| **stage-3-1** | [3-1] 홈페이지 하나봇 RAG 연결 | web/server.py, web/static/script.js, 근거 표시, 스레드 처리 | `webrun.bat` |
-| **stage-3-2** | [3교시] 홈페이지 완성 (상담 · GPU 예약 · 수강 신청 · API 정리) | web/services.py, web/server.py, web/static/page.html, web/API.md, web/check_api.py | `python web/check_api.py` |
-| **stage-2-1** | [2-1] RAG 서비스 | apps/api.py, FastAPI, 웹 UI | `python apps/api.py` |
-| **stage-2-2** | [2-2] LangGraph | hanabot/agent/workflow.py | `python apps/cli.py --agent` |
-| **stage-2-3** | [2-3] AI Agent | hanabot/agent/tools.py | `python apps/cli.py --agent-advanced` |
-| **stage-2-4** | [2-4] vLLM | labs/2-4-vllm/, 배치 최적화 | `python labs/2-4-vllm/server.py` |
-| **stage-2-5** | [2-5] Docker | docker/Dockerfile, docker-compose.yml | `docker-compose up` |
-| **stage-2-6** | [2-6] CI/CD | .github/workflows/ci.yml | (자동 실행) |
-| **stage-2-7** | [2-7] Kubernetes | k8s/deployment.yaml | `kubectl apply -f k8s/` |
-
----
-
-## 💡 개발 규칙
-
-[CLAUDE.md](CLAUDE.md)를 참고하세요.
-
-- 주석과 메시지는 **한국어**
-- 모델 설정은 **.env에서 읽음** (코드에 하드코딩 없음)
-- 각 단계 완료 후: 실행 확인 → README 갱신 → 커밋 + 태그
-
----
-
-## 🔗 추가 자료
-
-- [로드맵 상세](PLAN.md)
-- [개발 규칙](CLAUDE.md)
-
----
-
-**행운을 빕니다!** 🚀
