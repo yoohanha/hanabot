@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 # [3-1] 하나봇 RAG 임포트
 from hanabot.rag import answer_question, get_vector_store
 # [3-3] 웹 서비스 임포트
-from web.services import create_consult
+from web.services import create_consult, reserve_gpu
 
 # .env 로드
 load_dotenv()
@@ -271,6 +271,44 @@ async def api_consult(request_body: dict):
 
     result = create_consult(student_id, course, desired_time, inquiry)
     return JSONResponse(result)
+
+
+# [3-4] GPU PC 예약 엔드포인트
+@app.post('/api/reserve')
+async def api_reserve(request_body: dict):
+    """GPU PC 예약을 받고 저장"""
+    student_id = request_body.get('student_id', '')
+    date = request_body.get('date', '')
+    start_time = request_body.get('start_time', '')
+    duration = request_body.get('duration', 0)
+    pc_number = request_body.get('pc_number', 0)
+
+    result = reserve_gpu(student_id, date, start_time, duration, pc_number)
+    return JSONResponse(result)
+
+
+# [3-4] GPU PC 예약 현황 조회
+@app.get('/api/reserve')
+async def api_reserve_list(date: str = ''):
+    """특정 날짜의 GPU PC 예약 현황 조회"""
+    reserves_file = PROJECT_ROOT / 'web' / 'data' / 'reserves.json'
+
+    if not reserves_file.exists():
+        return JSONResponse({'date': date, 'reserves': []})
+
+    try:
+        with open(reserves_file, 'r', encoding='utf-8') as f:
+            all_reserves = json.load(f)
+    except json.JSONDecodeError:
+        return JSONResponse({'date': date, 'reserves': []})
+
+    # 지정된 날짜의 예약만 필터링
+    if date:
+        filtered_reserves = [r for r in all_reserves if r['date'] == date]
+    else:
+        filtered_reserves = all_reserves
+
+    return JSONResponse({'date': date, 'reserves': filtered_reserves})
 
 
 # [2-1] 정적 파일 제공

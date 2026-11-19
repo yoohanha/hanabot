@@ -150,6 +150,71 @@
       border-radius: 8px;
       margin-bottom: var(--spacing-lg);
     }
+
+    /* [3-4] GPU PC 예약 양식 */
+    .reserve-form {
+      display: flex;
+      flex-direction: column;
+      gap: var(--spacing-md);
+    }
+
+    .reserve-form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--spacing-md);
+    }
+
+    .reserve-form-row.full {
+      grid-template-columns: 1fr;
+    }
+
+    /* [3-4] 예약 현황 테이블 */
+    .reserve-schedule {
+      margin-top: var(--spacing-2xl);
+      overflow-x: auto;
+    }
+
+    .reserve-schedule table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+
+    .reserve-schedule th,
+    .reserve-schedule td {
+      padding: var(--spacing-md);
+      text-align: center;
+      border-right: 1px solid var(--color-border);
+    }
+
+    .reserve-schedule th {
+      background-color: var(--color-rose);
+      color: white;
+      font-weight: 600;
+    }
+
+    .reserve-schedule tr:nth-child(even) {
+      background-color: var(--color-gray-lighter);
+    }
+
+    .reserve-slot {
+      padding: var(--spacing-sm);
+      border-radius: 4px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .reserve-slot.booked {
+      background-color: #fed7aa;
+      color: #92400e;
+    }
+
+    .reserve-slot.available {
+      background-color: #dcfce7;
+      color: #15803d;
+    }
   </style>
 </head>
 <body>
@@ -320,6 +385,159 @@
       document.getElementById('consultMessage').innerHTML = '';
     }
 
+    // [3-4] GPU PC 예약 양식 렌더링
+    function renderReserveForm() {
+      document.getElementById('pageTitle').textContent = 'GPU PC 예약';
+
+      const today = new Date();
+      const minDate = today.toISOString().split('T')[0];
+
+      document.getElementById('pageBody').innerHTML = `
+        <div class="reserve-form">
+          <div id="reserveMessage"></div>
+
+          <div class="reserve-form-row">
+            <div class="form-group">
+              <label for="studentIdReserve">가상 학번 *</label>
+              <input type="text" id="studentIdReserve" placeholder="예: HANA-001" required>
+            </div>
+
+            <div class="form-group">
+              <label for="reserveDate">날짜 * (평일만)</label>
+              <input type="date" id="reserveDate" min="${minDate}" required>
+            </div>
+          </div>
+
+          <div class="reserve-form-row">
+            <div class="form-group">
+              <label for="startTime">시작 시각 * (09:00 ~ 21:00)</label>
+              <input type="time" id="startTime" required>
+            </div>
+
+            <div class="form-group">
+              <label for="duration">이용 시간 *</label>
+              <select id="duration" required>
+                <option value="">선택하세요</option>
+                <option value="2">2시간</option>
+                <option value="4">4시간</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="pcNumber">PC 번호 * (GPU-1 ~ GPU-4)</label>
+            <select id="pcNumber" required>
+              <option value="">선택하세요</option>
+              <option value="1">GPU-1</option>
+              <option value="2">GPU-2</option>
+              <option value="3">GPU-3</option>
+              <option value="4">GPU-4</option>
+            </select>
+          </div>
+
+          <div class="form-buttons">
+            <button class="btn-submit" onclick="submitReserve()">예약</button>
+            <button class="btn-reset" onclick="resetReserveForm()">초기화</button>
+          </div>
+
+          <div id="scheduleContainer" class="reserve-schedule"></div>
+        </div>
+      `;
+
+      loadReserveSchedule();
+    }
+
+    // [3-4] GPU PC 예약 제출
+    async function submitReserve() {
+      const studentId = document.getElementById('studentIdReserve').value;
+      const date = document.getElementById('reserveDate').value;
+      const startTime = document.getElementById('startTime').value;
+      const duration = parseInt(document.getElementById('duration').value);
+      const pcNumber = parseInt(document.getElementById('pcNumber').value);
+
+      try {
+        const response = await fetch('/api/reserve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            student_id: studentId,
+            date: date,
+            start_time: startTime,
+            duration: duration,
+            pc_number: pcNumber
+          })
+        });
+
+        const data = await response.json();
+        const messageDiv = document.getElementById('reserveMessage');
+
+        if (data.success) {
+          messageDiv.innerHTML = `<div class="consult-success">✅ ${data.message}</div>`;
+          document.getElementById('studentIdReserve').value = '';
+          document.getElementById('reserveDate').value = '';
+          document.getElementById('startTime').value = '';
+          document.getElementById('duration').value = '';
+          document.getElementById('pcNumber').value = '';
+          loadReserveSchedule();
+        } else {
+          messageDiv.innerHTML = `<div class="consult-error">⚠️ ${data.message}</div>`;
+        }
+      } catch (error) {
+        console.error(error);
+        document.getElementById('reserveMessage').innerHTML = `<div class="consult-error">⚠️ 오류가 발생했습니다.</div>`;
+      }
+    }
+
+    // [3-4] GPU PC 예약 현황 로드
+    async function loadReserveSchedule() {
+      const dateInput = document.getElementById('reserveDate');
+      if (!dateInput || !dateInput.value) return;
+
+      const date = dateInput.value;
+
+      try {
+        const response = await fetch(`/api/reserve?date=${date}`);
+        const data = await response.json();
+        const reserves = data.reserves || [];
+
+        // 시간표 생성
+        let html = `<h3>${date} 예약 현황</h3><table><thead><tr><th>시간</th>`;
+        for (let i = 1; i <= 4; i++) {
+          html += `<th>GPU-${i}</th>`;
+        }
+        html += `</tr></thead><tbody>`;
+
+        // 09:00 ~ 21:00 시간대 표시
+        for (let hour = 9; hour < 21; hour++) {
+          html += `<tr><td>${hour}:00</td>`;
+          for (let pc = 1; pc <= 4; pc++) {
+            const reserved = reserves.find(r => r.pc_number === pc && r.start_hour === hour);
+            if (reserved) {
+              html += `<td><div class="reserve-slot booked">${reserved.student_id}<br>${reserved.duration}시간</div></td>`;
+            } else {
+              html += `<td><div class="reserve-slot available">사용 가능</div></td>`;
+            }
+          }
+          html += `</tr>`;
+        }
+
+        html += `</tbody></table>`;
+        document.getElementById('scheduleContainer').innerHTML = html;
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    // [3-4] GPU PC 예약 양식 초기화
+    function resetReserveForm() {
+      document.getElementById('studentIdReserve').value = '';
+      document.getElementById('reserveDate').value = '';
+      document.getElementById('startTime').value = '';
+      document.getElementById('duration').value = '';
+      document.getElementById('pcNumber').value = '';
+      document.getElementById('reserveMessage').innerHTML = '';
+    }
+
     // [3-2] 페이지 로드 (RAG_PLAN.md 또는 pages.md에서)
     async function loadPage() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -333,6 +551,12 @@
       // [3-3] 상담 신청 특수 처리
       if (pageId === '상담신청') {
         renderConsultForm();
+        return;
+      }
+
+      // [3-4] GPU PC 예약 특수 처리
+      if (pageId === 'GPU예약') {
+        renderReserveForm();
         return;
       }
 
