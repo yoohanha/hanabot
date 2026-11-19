@@ -336,6 +336,58 @@ async def api_enroll(request_body: dict):
     return JSONResponse(result)
 
 
+# [3-6] 관리자 화면용 API
+@app.get('/api/consult')
+async def api_consult_list():
+    """모든 상담 신청 조회"""
+    consults_file = PROJECT_ROOT / 'web' / 'data' / 'consults.json'
+
+    if not consults_file.exists():
+        return JSONResponse({'consults': []})
+
+    try:
+        with open(consults_file, 'r', encoding='utf-8') as f:
+            consults = json.load(f)
+    except json.JSONDecodeError:
+        consults = []
+
+    return JSONResponse({'consults': consults})
+
+
+@app.get('/api/reserves')
+async def api_reserves_list():
+    """모든 GPU PC 예약 조회"""
+    reserves_file = PROJECT_ROOT / 'web' / 'data' / 'reserves.json'
+
+    if not reserves_file.exists():
+        return JSONResponse({'reserves': []})
+
+    try:
+        with open(reserves_file, 'r', encoding='utf-8') as f:
+            reserves = json.load(f)
+    except json.JSONDecodeError:
+        reserves = []
+
+    return JSONResponse({'reserves': reserves})
+
+
+@app.get('/api/enroll')
+async def api_enroll_list():
+    """모든 수강 신청 조회"""
+    enrolls_file = PROJECT_ROOT / 'web' / 'data' / 'enrolls.json'
+
+    if not enrolls_file.exists():
+        return JSONResponse({'enrolls': []})
+
+    try:
+        with open(enrolls_file, 'r', encoding='utf-8') as f:
+            enrolls = json.load(f)
+    except json.JSONDecodeError:
+        enrolls = []
+
+    return JSONResponse({'enrolls': enrolls})
+
+
 # [2-1] 정적 파일 제공
 @app.get('/')
 async def root():
