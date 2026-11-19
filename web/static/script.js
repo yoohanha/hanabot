@@ -44,6 +44,26 @@ document.addEventListener('DOMContentLoaded', function() {
   // 메뉴 초기화
   initializeMenu();
 
+  // [3-6] 로그인 버튼
+  const loginBtn = document.querySelector('.btn-login');
+  if (loginBtn) {
+    loginBtn.addEventListener('click', function() {
+      alert('수업용 데모 사이트라 로그인이 없어요.\n신청은 가상 학번으로 해요.\n예: HANA-001');
+    });
+  }
+
+  // [3-6] 관리자 화면 접근
+  const adminLink = document.createElement('a');
+  adminLink.href = 'admin.html';
+  adminLink.style.position = 'fixed';
+  adminLink.style.bottom = '20px';
+  adminLink.style.left = '20px';
+  adminLink.style.fontSize = '12px';
+  adminLink.style.color = '#999';
+  adminLink.style.textDecoration = 'none';
+  adminLink.textContent = '⚙️ 관리자';
+  document.body.appendChild(adminLink);
+
   // 시간표 데이터 로드 (API에서)
   loadScheduleData();
 
@@ -308,10 +328,16 @@ function initializeChat() {
     }
   });
 
-  // 메시지 전송
+  // [3-1] 메시지 전송 (한글 입력 문제 해결)
+  let isSending = false;
   async function sendMessage() {
+    // 중복 전송 방지
+    if (isSending) return;
+
     const message = chatInput.value.trim();
     if (!message) return;
+
+    isSending = true;
 
     // 사용자 메시지 표시
     const userDiv = document.createElement('div');
@@ -341,9 +367,9 @@ function initializeChat() {
       const botDiv = document.createElement('div');
       botDiv.className = 'chat-message bot';
 
-      // [3-1] 근거 처리 (규정에 없는 경우 제외)
+      // [3-1] 근거 처리 (규정에 없는 경우 & 인사말 제외)
       let sourcesHtml = '';
-      if (!botReply.includes('규정에 없는')) {
+      if (!botReply.includes('규정에 없는') && !botReply.includes('하나 AI 학원 규정을 물어보세요')) {
         // 근거 중복 제거 및 포맷팅
         const uniqueSources = [...new Set(sources)];
 
@@ -378,15 +404,18 @@ function initializeChat() {
       botDiv.className = 'chat-message bot';
       botDiv.innerHTML = `<div class="message-content">오류가 발생했습니다.</div>`;
       chatMessages.appendChild(botDiv);
+    } finally {
+      isSending = false;
     }
   }
 
   // 전송 버튼
   chatSend.addEventListener('click', sendMessage);
 
-  // Enter 키로 전송
-  chatInput.addEventListener('keypress', function(e) {
-    if (e.key === 'Enter') {
+  // [3-1] Enter 키로 전송 (한글 조합 중 제외, keydown 사용)
+  chatInput.addEventListener('keydown', function(e) {
+    if (e.key === 'Enter' && !e.isComposing && e.keyCode !== 229) {
+      e.preventDefault();
       sendMessage();
     }
   });

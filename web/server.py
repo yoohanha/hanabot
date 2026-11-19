@@ -22,6 +22,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 # [3-1] 하나봇 RAG 임포트
 from hanabot.rag import answer_question, get_vector_store
+# [3-3] 웹 서비스 임포트
+from web.services import create_consult, reserve_gpu, calc_fee, enroll
 
 # .env 로드
 load_dotenv()
@@ -32,6 +34,7 @@ HOST = os.getenv('WEB_HOST', 'localhost')
 PROJECT_ROOT = Path(__file__).parent.parent
 WEB_STATIC = PROJECT_ROOT / 'web' / 'static'
 RAG_PLAN = PROJECT_ROOT / 'data' / 'RAG_PLAN.md'
+PAGES_MD = PROJECT_ROOT / 'web' / 'data' / 'pages.md'
 
 # FastAPI 앱
 app = FastAPI()
@@ -106,8 +109,55 @@ def parse_rag_docs():
     return docs
 
 
-# 캐시된 RAG 문서
+# [3-2] 페이지 마크다운 파싱
+def parse_pages():
+    """web/data/pages.md에서 페이지 내용을 파싱해서 JSON으로 반환"""
+    if not PAGES_MD.exists():
+        return {}
+
+    with open(PAGES_MD, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # # 제목, ## 소제목, 내용 파싱 (RAG_PLAN과 동일)
+    docs = {}
+    current_title = None
+    current_section = None
+    current_text = []
+
+    for line in content.split('\n'):
+        line = line.rstrip()
+
+        if line.startswith('# ') and not line.startswith('## '):
+            # 제목 (# 으로 시작, ## 아님)
+            current_title = line[2:].strip()
+            if current_title and current_title not in docs:
+                docs[current_title] = {}
+            current_section = None
+            current_text = []
+
+        elif line.startswith('## '):
+            # 소제목
+            if current_title:
+                if current_section and current_text:
+                    docs[current_title][current_section] = '\n'.join(current_text).strip()
+
+                current_section = line[3:].strip()
+                current_text = []
+
+        elif line and current_title and current_section:
+            # 내용
+            current_text.append(line)
+
+    # 마지막 항목 저장
+    if current_title and current_section and current_text:
+        docs[current_title][current_section] = '\n'.join(current_text).strip()
+
+    return docs
+
+
+# 캐시된 문서
 _rag_docs_cache = None
+_pages_cache = None
 
 def get_rag_docs():
     """RAG 문서 캐시 (매번 파일 읽지 않기 위해)"""
@@ -116,12 +166,27 @@ def get_rag_docs():
     return _rag_docs_cache
 
 
+def get_pages():
+    """페이지 문서 캐시"""
+    global _pages_cache
+    _pages_cache = parse_pages()
+    return _pages_cache
+
+
 # [2-1] API 엔드포인트
 @app.get('/api/docs')
 async def api_docs():
     """RAG_PLAN.md를 JSON으로 반환"""
     docs = get_rag_docs()
     return JSONResponse(docs)
+
+
+# [3-2] 페이지 API (규정 아닌 안내 페이지)
+@app.get('/api/pages')
+async def api_pages():
+    """web/data/pages.md를 JSON으로 반환"""
+    pages = get_pages()
+    return JSONResponse(pages)
 
 
 @app.get('/api/docs/{title}')
@@ -150,17 +215,177 @@ async def api_docs_section(title: str, section: str):
     return JSONResponse({}, status_code=404)
 
 
+# [3-1] 인사말 감지 및 처리
+def is_greeting(message: str) -> tuple[bool, str]:
+    """
+    인사말을 감지하고, 맞으면 (True, 답변)을 반환
+    그 외는 (False, '')을 반환
+    """
+    msg_lower = message.lower().strip()
+
+    # 인사말 패턴 (소문자로 비교)
+    greetings = {
+        'hi': '안녕하세요! 하나 AI 학원 규정을 물어보세요. 예: 지각 몇 번이면 결석이야?',
+        'hello': '안녕하세요! 하나 AI 학원 규정을 물어보세요. 예: 지각 몇 번이면 결석이야?',
+        '안녕': '안녕하세요! 하나 AI 학원 규정을 물어보세요. 예: 지각 몇 번이면 결석이야?',
+        '안녕하세요': '안녕하세요! 하나 AI 학원 규정을 물어보세요. 예: 지각 몇 번이면 결석이야?',
+        '고마워': '도움이 되었다니 기뻐요! 더 궁금한 규정이 있으면 물어봐요 😊',
+        '감사합니다': '도움이 되었다니 기뻐요! 더 궁금한 규정이 있으면 물어봐요 😊',
+        '감사해': '도움이 되었다니 기뻐요! 더 궁금한 규정이 있으면 물어봐요 😊',
+        '고마워요': '도움이 되었다니 기뻐요! 더 궁금한 규정이 있으면 물어봐요 😊',
+    }
+
+    for greeting_key, response in greetings.items():
+        if msg_lower == greeting_key or msg_lower.startswith(greeting_key + ' ') or msg_lower.endswith(' ' + greeting_key):
+            return True, response
+
+    return False, ''
+
+
 # [3-1] 채팅 엔드포인트 (하나봇 RAG 연결)
 @app.post('/chat')
 async def chat(request_body: dict):
     """사용자 메시지를 받고 RAG로 응답 반환"""
     message = request_body.get('message', '')
 
+    # [3-1] 인사말 감지 (RAG 호출 없음)
+    is_greet, greet_reply = is_greeting(message)
+    if is_greet:
+        return {'reply': greet_reply, 'sources': []}
+
     # [3-1] 스레드에서 RAG 질의 (서버 블로킹 방지)
     loop = asyncio.get_event_loop()
     reply, sources = await loop.run_in_executor(executor, answer_question, message)
 
     return {'reply': reply, 'sources': sources}
+
+
+# [3-3] 상담 신청 엔드포인트
+@app.post('/api/consult')
+async def api_consult(request_body: dict):
+    """상담 신청을 받고 저장"""
+    student_id = request_body.get('student_id', '')
+    course = request_body.get('course', '')
+    desired_time = request_body.get('desired_time', '')
+    inquiry = request_body.get('inquiry', '')
+
+    result = create_consult(student_id, course, desired_time, inquiry)
+    return JSONResponse(result)
+
+
+# [3-4] GPU PC 예약 엔드포인트
+@app.post('/api/reserve')
+async def api_reserve(request_body: dict):
+    """GPU PC 예약을 받고 저장"""
+    student_id = request_body.get('student_id', '')
+    date = request_body.get('date', '')
+    start_time = request_body.get('start_time', '')
+    duration = request_body.get('duration', 0)
+    pc_number = request_body.get('pc_number', 0)
+
+    result = reserve_gpu(student_id, date, start_time, duration, pc_number)
+    return JSONResponse(result)
+
+
+# [3-4] GPU PC 예약 현황 조회
+@app.get('/api/reserve')
+async def api_reserve_list(date: str = ''):
+    """특정 날짜의 GPU PC 예약 현황 조회"""
+    reserves_file = PROJECT_ROOT / 'web' / 'data' / 'reserves.json'
+
+    if not reserves_file.exists():
+        return JSONResponse({'date': date, 'reserves': []})
+
+    try:
+        with open(reserves_file, 'r', encoding='utf-8') as f:
+            all_reserves = json.load(f)
+    except json.JSONDecodeError:
+        return JSONResponse({'date': date, 'reserves': []})
+
+    # 지정된 날짜의 예약만 필터링
+    if date:
+        filtered_reserves = [r for r in all_reserves if r['date'] == date]
+    else:
+        filtered_reserves = all_reserves
+
+    return JSONResponse({'date': date, 'reserves': filtered_reserves})
+
+
+# [3-5] 수강료 계산 엔드포인트
+@app.post('/api/fee')
+async def api_fee(request_body: dict):
+    """수강료를 계산 (저장하지 않음)"""
+    course = request_body.get('course', '')
+    months = request_body.get('months', 0)
+    discount_type = request_body.get('discount_type', '없음')
+
+    result = calc_fee(course, months, discount_type)
+    return JSONResponse(result)
+
+
+# [3-5] 수강 신청 엔드포인트
+@app.post('/api/enroll')
+async def api_enroll(request_body: dict):
+    """수강을 신청하고 저장"""
+    student_id = request_body.get('student_id', '')
+    course = request_body.get('course', '')
+    months = request_body.get('months', 0)
+    discount_type = request_body.get('discount_type', '없음')
+
+    result = enroll(student_id, course, months, discount_type)
+    return JSONResponse(result)
+
+
+# [3-6] 관리자 화면용 API
+@app.get('/api/consult')
+async def api_consult_list():
+    """모든 상담 신청 조회"""
+    consults_file = PROJECT_ROOT / 'web' / 'data' / 'consults.json'
+
+    if not consults_file.exists():
+        return JSONResponse({'consults': []})
+
+    try:
+        with open(consults_file, 'r', encoding='utf-8') as f:
+            consults = json.load(f)
+    except json.JSONDecodeError:
+        consults = []
+
+    return JSONResponse({'consults': consults})
+
+
+@app.get('/api/reserves')
+async def api_reserves_list():
+    """모든 GPU PC 예약 조회"""
+    reserves_file = PROJECT_ROOT / 'web' / 'data' / 'reserves.json'
+
+    if not reserves_file.exists():
+        return JSONResponse({'reserves': []})
+
+    try:
+        with open(reserves_file, 'r', encoding='utf-8') as f:
+            reserves = json.load(f)
+    except json.JSONDecodeError:
+        reserves = []
+
+    return JSONResponse({'reserves': reserves})
+
+
+@app.get('/api/enroll')
+async def api_enroll_list():
+    """모든 수강 신청 조회"""
+    enrolls_file = PROJECT_ROOT / 'web' / 'data' / 'enrolls.json'
+
+    if not enrolls_file.exists():
+        return JSONResponse({'enrolls': []})
+
+    try:
+        with open(enrolls_file, 'r', encoding='utf-8') as f:
+            enrolls = json.load(f)
+    except json.JSONDecodeError:
+        enrolls = []
+
+    return JSONResponse({'enrolls': enrolls})
 
 
 # [2-1] 정적 파일 제공

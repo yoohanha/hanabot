@@ -57,3 +57,5 @@ results/
 labs/*/output/
 labs/*/__pycache__/
 .omc/
+web/data/consults.json
+web/data/*.json

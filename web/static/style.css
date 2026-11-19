@@ -1366,10 +1366,60 @@ section.cta {
     --font-size-3xl: 24px;
     --font-size-2xl: 20px;
     --font-size-xl: 18px;
+    --spacing-2xl: 16px;
   }
 
   .grid-2,
   .grid-3 {
     grid-template-columns: 1fr;
+  }
+
+  /* [3-6] 모바일 최적화 */
+  .container {
+    padding: 0 12px;
+  }
+
+  /* 테이블 모바일 처리 */
+  table {
+    font-size: 12px;
+  }
+
+  table th,
+  table td {
+    padding: 8px 6px;
+  }
+
+  /* 양식 최적화 */
+  .form-buttons {
+    flex-direction: column-reverse;
+  }
+
+  .form-buttons button {
+    min-height: 44px;
+  }
+
+  .reserve-form-row,
+  .enroll-form-row {
+    grid-template-columns: 1fr;
+  }
+
+  /* 카드/섹션 여백 조정 */
+  .card {
+    padding: var(--spacing-lg);
+  }
+
+  .page-content {
+    padding: var(--spacing-lg);
+  }
+
+  /* 헤어로 간격 조정 */
+  .slide h1 {
+    font-size: 20px;
+    line-height: 1.4;
+  }
+
+  .btn {
+    padding: 10px 16px;
+    font-size: 14px;
   }
 }
