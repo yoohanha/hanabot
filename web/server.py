@@ -189,6 +189,59 @@ async def api_pages():
     return JSONResponse(pages)
 
 
+# [3-3] 월별 시간표 API
+@app.get('/api/schedule')
+async def api_schedule(month: str = ''):
+    """data/schedule/YYYY-MM.md를 표 데이터(JSON)로 반환"""
+    if not month:
+        # 기본값: 현재 월 (YYYY-MM 형식)
+        from datetime import datetime
+        month = datetime.now().strftime('%Y-%m')
+
+    schedule_file = PROJECT_ROOT / 'data' / 'schedule' / f'{month}.md'
+
+    if not schedule_file.exists():
+        return JSONResponse({'exists': False, 'month': month})
+
+    # Markdown 테이블 파싱
+    try:
+        with open(schedule_file, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # 테이블 추출 (| 로 시작하는 줄들)
+        lines = content.split('\n')
+        table_data = []
+        in_table = False
+
+        for line in lines:
+            if line.startswith('|'):
+                # 헤더나 구분선 제외
+                if '---' not in line:
+                    # 헤더 행 제외 (첫 번째 |)
+                    if not in_table or in_table:
+                        cells = [cell.strip() for cell in line.split('|')[1:-1]]
+                        # 헤더 행 (3개 이상 셀이고 "날짜" 포함) 제외
+                        if cells and cells[0] != '날짜':
+                            if len(cells) >= 6:
+                                table_data.append({
+                                    'date': cells[0],
+                                    'day': cells[1],
+                                    'course': cells[2],
+                                    'morning': cells[3],
+                                    'afternoon': cells[4],
+                                    'note': cells[5] if len(cells) > 5 else ''
+                                })
+                        in_table = True
+
+        return JSONResponse({
+            'exists': True,
+            'month': month,
+            'schedule': table_data
+        })
+    except Exception as e:
+        return JSONResponse({'exists': False, 'month': month, 'error': str(e)})
+
+
 @app.get('/api/docs/{title}')
 async def api_docs_title(title: str):
     """특정 제목의 모든 소제목 반환"""

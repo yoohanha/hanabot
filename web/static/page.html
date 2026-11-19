@@ -298,6 +298,123 @@
       font-weight: bold;
       margin-right: var(--spacing-sm);
     }
+
+    /* [3-3] 월별 시간표 */
+    .schedule-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: var(--spacing-md);
+      margin-bottom: var(--spacing-2xl);
+    }
+
+    .schedule-nav {
+      display: flex;
+      gap: var(--spacing-sm);
+    }
+
+    .schedule-nav button {
+      background: var(--color-rose);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.2s;
+    }
+
+    .schedule-nav button:hover {
+      background: #d4295f;
+    }
+
+    .schedule-calendar {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin-bottom: var(--spacing-2xl);
+    }
+
+    .schedule-day-header {
+      text-align: center;
+      font-weight: bold;
+      padding: 8px;
+      color: var(--color-text-light);
+      font-size: 12px;
+    }
+
+    .schedule-cell {
+      border: 1px solid var(--color-border);
+      border-radius: 4px;
+      padding: 10px;
+      min-height: 80px;
+      font-size: 12px;
+      line-height: 1.4;
+    }
+
+    .schedule-cell.empty {
+      background-color: var(--color-gray-lighter);
+      cursor: default;
+    }
+
+    .schedule-cell.closed {
+      background-color: #e5e7eb;
+      color: #9ca3af;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .schedule-cell.today {
+      border: 2px solid var(--color-rose);
+      background-color: #fef3c7;
+    }
+
+    .schedule-cell-date {
+      font-weight: bold;
+      color: var(--color-text);
+      margin-bottom: 4px;
+    }
+
+    .schedule-cell-time {
+      font-size: 11px;
+      color: var(--color-text-light);
+      margin-bottom: 4px;
+    }
+
+    .schedule-course {
+      padding: 4px 6px;
+      border-radius: 3px;
+      margin-bottom: 3px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .schedule-course.basic {
+      background-color: #dbeafe;
+      color: #1e40af;
+    }
+
+    .schedule-course.advanced {
+      background-color: #fecaca;
+      color: #991b1b;
+    }
+
+    @media (max-width: 600px) {
+      .schedule-calendar {
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      .schedule-day-header {
+        display: none;
+      }
+
+      .schedule-cell {
+        min-height: 70px;
+        font-size: 11px;
+      }
+    }
   </style>
 </head>
 <body>
@@ -795,6 +912,104 @@
       updateFee();
     }
 
+    // [3-3] 월별 시간표 렌더링
+    async function renderScheduleCalendar() {
+      document.getElementById('pageTitle').textContent = '시간표';
+
+      const today = new Date();
+      const currentMonth = today.toISOString().substring(0, 7); // YYYY-MM
+
+      try {
+        const response = await fetch(`/api/schedule?month=${currentMonth}`);
+        const data = await response.json();
+
+        if (!data.exists) {
+          // 파일이 없으면 준비 중 + 주간 시간표
+          document.getElementById('pageBody').innerHTML = `
+            <div style="text-align: center; padding: 40px 0;">
+              <p style="font-size: 18px; color: var(--color-text-light); margin-bottom: 30px;">📅 이 달 상세 시간표는 준비 중이에요</p>
+              <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                <h2 style="margin-top: 0;">주간 시간표</h2>
+                <div style="text-align: left;">
+                  <p><strong>월요일</strong><br>오전: AI 기초 소양 | 오후: 생성형 AI 활용</p>
+                  <p><strong>화요일</strong><br>오전: 프롬프트 엔지니어링 | 오후: 바이브 코딩</p>
+                  <p><strong>수요일</strong><br>오전: 업무 자동화·ERP | 오후: Private LLM ①</p>
+                  <p><strong>목요일</strong><br>오전: Private LLM ② | 오후: AI 에이전트</p>
+                  <p><strong>금요일</strong><br>오전: 에이전틱 AI | 오후: AI 윤리와 보안</p>
+                </div>
+              </div>
+              <a href="page.html?id=상담신청" class="btn btn-primary" style="display: inline-block; text-decoration: none;">📞 상담 신청하기</a>
+            </div>
+          `;
+          return;
+        }
+
+        // 월별 시간표 렌더링
+        const schedule = data.schedule || [];
+        const monthStr = currentMonth.substring(0, 7);
+        const year = parseInt(monthStr.substring(0, 4));
+        const month = parseInt(monthStr.substring(5, 7));
+
+        const firstDay = new Date(year, month - 1, 1);
+        const startDate = new Date(firstDay);
+        startDate.setDate(startDate.getDate() - firstDay.getDay());
+
+        let calendarHtml = `
+          <div class="schedule-controls">
+            <div>
+              <strong style="font-size: 20px;">${monthStr.substring(0, 4)}년 ${month}월</strong>
+            </div>
+          </div>
+          <div class="schedule-calendar">
+            <div class="schedule-day-header">일</div>
+            <div class="schedule-day-header">월</div>
+            <div class="schedule-day-header">화</div>
+            <div class="schedule-day-header">수</div>
+            <div class="schedule-day-header">목</div>
+            <div class="schedule-day-header">금</div>
+            <div class="schedule-day-header">토</div>
+        `;
+
+        for (let i = 0; i < 42; i++) {
+          const date = new Date(startDate);
+          date.setDate(startDate.getDate() + i);
+          const dateStr = date.toISOString().substring(0, 10);
+          const dateNum = date.getDate();
+          const isToday = dateStr === today.toISOString().substring(0, 10);
+          const isCurrentMonth = date.getMonth() === month - 1;
+          const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+
+          if (!isCurrentMonth) {
+            calendarHtml += `<div class="schedule-cell empty"></div>`;
+          } else if (isWeekend) {
+            calendarHtml += `<div class="schedule-cell closed">휴원</div>`;
+          } else {
+            const daySchedule = schedule.find(s => s.date === dateStr.substring(5));
+            if (!daySchedule || daySchedule.note === '휴원') {
+              calendarHtml += `<div class="schedule-cell closed">휴원</div>`;
+            } else {
+              const basicCourse = daySchedule.morning && daySchedule.morning.includes('AI');
+              const courseClass = daySchedule.course === '기초반' ? 'basic' : 'advanced';
+              calendarHtml += `
+                <div class="schedule-cell ${isToday ? 'today' : ''}">
+                  <div class="schedule-cell-date">${dateNum}</div>
+                  <div class="schedule-cell-time">${daySchedule.day}</div>
+                  <div class="schedule-course ${courseClass}">${daySchedule.morning}</div>
+                  <div class="schedule-course ${courseClass}">${daySchedule.afternoon}</div>
+                </div>
+              `;
+            }
+          }
+        }
+
+        calendarHtml += `</div>`;
+        document.getElementById('pageBody').innerHTML = calendarHtml;
+      } catch (error) {
+        console.error(error);
+        document.getElementById('pageBody').innerHTML = `<div class="error">시간표를 불러올 수 없습니다.</div>`;
+      }
+    }
+
     // [3-2] 페이지 로드 (RAG_PLAN.md 또는 pages.md에서)
     async function loadPage() {
       const urlParams = new URLSearchParams(window.location.search);
@@ -820,6 +1035,12 @@
       // [3-5] 수강 신청 특수 처리
       if (pageId === '수강신청') {
         renderEnrollForm();
+        return;
+      }
+
+      // [3-3] 시간표 특수 처리
+      if (pageId === '시간표') {
+        renderScheduleCalendar();
         return;
       }
 
