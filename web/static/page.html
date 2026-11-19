@@ -912,6 +912,14 @@
       updateFee();
     }
 
+    // [3-3] 마크다운 변환 함수 (로컬)
+    function markdownToHtmlLocal(text) {
+      if (!text) return '';
+      text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      text = text.replace(/^- /gm, '• ');
+      return text;
+    }
+
     // [3-3] 학원소개 페이지 렌더링
     async function renderSchoolInfo() {
       document.getElementById('pageTitle').textContent = '하나 AI 학원은';
@@ -932,7 +940,7 @@
         let html = `
           <!-- 소개 -->
           <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; border-radius: 12px; margin-bottom: 40px; text-align: center;">
-            <p style="font-size: 20px; line-height: 1.8; margin: 0;">${markdownToHtml(intro)}</p>
+            <p style="font-size: 20px; line-height: 1.8; margin: 0;">${markdownToHtmlLocal(intro)}</p>
           </div>
 
           <!-- 가상 학원 안내 -->
