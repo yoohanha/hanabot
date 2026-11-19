@@ -18,7 +18,8 @@ function initializeChatUI() {
         </div>
         <div class="chat-messages" id="chatMessages">
           <div class="chat-message bot">
-            <div class="message-content">안녕하세요! 하나 AI 학원 규정을 물어보세요.</div>
+            <img src="assets/brand/app_icon.png" alt="하나 AI 채팅봇" style="width: 40px; height: 40px; border-radius: 8px; margin-right: 10px; vertical-align: middle;">
+            <div class="message-content" style="display: inline-block; vertical-align: middle;">안녕하세요! 하나 AI 학원 규정을 물어보세요.</div>
           </div>
         </div>
         <div class="chat-input-area">

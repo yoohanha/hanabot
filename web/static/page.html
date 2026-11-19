@@ -148,6 +148,43 @@
       color: var(--color-rose);
       padding: var(--spacing-lg);
       border-radius: 8px;
+    }
+
+    /* [3-3] 떠 있는 마크 애니메이션 */
+    @keyframes float-mark {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-20px); }
+    }
+
+    .floating-mark {
+      animation: float-mark 3s ease-in-out infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .floating-mark {
+        animation: none;
+      }
+    }
+
+    /* [3-3] 로고 배경 */
+    .logo-bg {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .logo-bg::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-image: url('assets/brand/logo_grid.png');
+      background-size: cover;
+      background-position: center;
+      opacity: 0.08;
+      pointer-events: none;
+    }
       margin-bottom: var(--spacing-lg);
     }
 
@@ -939,10 +976,22 @@
         ];
 
         let html = `
-          <!-- 소개 -->
-          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; border-radius: 12px; margin-bottom: 40px; text-align: center;">
-            <p style="font-size: 20px; line-height: 1.8; margin: 0;">${markdownToHtmlLocal(intro)}</p>
+          <!-- [3-3] 소개 (마크 이미지 포함) -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; align-items: center; margin-bottom: 40px;">
+            <div style="font-size: 20px; line-height: 1.8; color: var(--color-text);">
+              ${markdownToHtmlLocal(intro)}
+            </div>
+            <div style="text-align: center;">
+              <img src="assets/brand/mark_glass.png" alt="하나 AI 채팅봇 마크" class="floating-mark" style="max-width: 100%; height: auto; filter: drop-shadow(0 10px 30px rgba(236, 72, 153, 0.2));">
+            </div>
           </div>
+
+          <style>
+            @media (max-width: 768px) {
+              .school-intro { grid-template-columns: 1fr !important; }
+              .mark-img { order: -1; }
+            }
+          </style>`;
 
           <!-- 가상 학원 안내 -->
           <div style="background: #fff5f5; border-left: 4px solid var(--color-rose); padding: 20px; border-radius: 8px; margin-bottom: 40px;">
@@ -950,14 +999,16 @@
             <p style="margin: 8px 0 0; color: var(--color-text-light); font-size: 14px;">이 학원은 AI 교육 프로젝트 용도의 가상 학원입니다. 실제 주소가 아니며, 학습 목적으로만 사용합니다.</p>
           </div>
 
-          <!-- 강사 소개 -->
-          <div style="background: white; border: 1px solid var(--color-border); border-radius: 12px; padding: 30px; margin-bottom: 40px;">
-            <h2 style="color: var(--color-rose); margin-top: 0;">🧑‍🏫 강사 소개</h2>
-            <ul style="margin: 0; padding-left: 20px;">
-              <li>생성AI와 privateLLM 실무 경험을 갖춘 AI 엔지니어</li>
-              <li>회사 데이터로 챗봇을 만들고, 운영하고, 개선하는 전체 과정 담당</li>
-              <li>학생 질문에 직접 답하고, 개인별로 코드 리뷰</li>
-            </ul>
+          <!-- [3-3] 강사 소개 (logo_grid 배경) -->
+          <div class="logo-bg" style="background: white; border: 1px solid var(--color-border); border-radius: 12px; padding: 30px; margin-bottom: 40px; position: relative;">
+            <div style="position: relative; z-index: 1;">
+              <h2 style="color: var(--color-rose); margin-top: 0;">🧑‍🏫 강사 소개</h2>
+              <ul style="margin: 0; padding-left: 20px;">
+                <li>생성AI와 privateLLM 실무 경험을 갖춘 AI 엔지니어</li>
+                <li>회사 데이터로 챗봇을 만들고, 운영하고, 개선하는 전체 과정 담당</li>
+                <li>학생 질문에 직접 답하고, 개인별로 코드 리뷰</li>
+              </ul>
+            </div>
           </div>
 
           <!-- 9과목 단계별 -->
@@ -1002,6 +1053,17 @@
         });
 
         html += `</div>`;
+
+        // [3-3] 하나 AI 브랜드 섹션
+        html += `
+          <div style="margin: 60px 0 40px;">
+            <h2 style="color: var(--color-rose); text-align: center;">🎨 하나 AI 브랜드</h2>
+            <div style="background: white; border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.08);">
+              <img src="assets/hana_brand_board.png" alt="하나 AI 학원 브랜드 시안 (hana.ai)" style="width: 100%; height: auto; display: block;">
+              <p style="text-align: center; color: var(--color-text-light); font-size: 14px; margin: 15px 0; padding: 0 20px;">하나 AI 학원 브랜드 시안 (hana.ai)</p>
+            </div>
+          </div>
+        `;
 
         // 맨 아래 핵심 인용 & 버튼
         html += `
