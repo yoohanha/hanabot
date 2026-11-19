@@ -912,6 +912,109 @@
       updateFee();
     }
 
+    // [3-3] 학원소개 페이지 렌더링
+    async function renderSchoolInfo() {
+      document.getElementById('pageTitle').textContent = '하나 AI 학원은';
+
+      try {
+        const response = await fetch('/api/docs');
+        const docs = await response.json();
+
+        const intro = docs['학원 소개']?.['하나 AI 학원은 어떤 곳인가'] || '';
+
+        // 과목 데이터
+        const courses = [
+          { emoji: '🌱', level: '기초', items: ['AI 기본 소양', '생성형 AI 활용', '프롬프트 엔지니어링'], class: 'basic' },
+          { emoji: '🚀', level: '내 AI 만들기', items: ['바이브 코딩', '업무 자동화·ERP', 'Private LLM', 'AI 에이전트'], class: 'advanced' },
+          { emoji: '🛡️', level: '마무리', items: ['에이전틱 AI', 'AI 윤리와 보안'], class: 'finalize' }
+        ];
+
+        let html = `
+          <!-- 소개 -->
+          <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 40px; border-radius: 12px; margin-bottom: 40px; text-align: center;">
+            <p style="font-size: 20px; line-height: 1.8; margin: 0;">${markdownToHtml(intro)}</p>
+          </div>
+
+          <!-- 가상 학원 안내 -->
+          <div style="background: #fff5f5; border-left: 4px solid var(--color-rose); padding: 20px; border-radius: 8px; margin-bottom: 40px;">
+            <p style="margin: 0; color: var(--color-rose);"><strong>⚠️ 가상 학원 안내</strong></p>
+            <p style="margin: 8px 0 0; color: var(--color-text-light); font-size: 14px;">이 학원은 AI 교육 프로젝트 용도의 가상 학원입니다. 실제 주소가 아니며, 학습 목적으로만 사용합니다.</p>
+          </div>
+
+          <!-- 강사 소개 -->
+          <div style="background: white; border: 1px solid var(--color-border); border-radius: 12px; padding: 30px; margin-bottom: 40px;">
+            <h2 style="color: var(--color-rose); margin-top: 0;">🧑‍🏫 강사 소개</h2>
+            <ul style="margin: 0; padding-left: 20px;">
+              <li>생성AI와 privateLLM 실무 경험을 갖춘 AI 엔지니어</li>
+              <li>회사 데이터로 챗봇을 만들고, 운영하고, 개선하는 전체 과정 담당</li>
+              <li>학생 질문에 직접 답하고, 개인별로 코드 리뷰</li>
+            </ul>
+          </div>
+
+          <!-- 9과목 단계별 -->
+          <div style="margin-bottom: 40px;">
+            <h2 style="color: var(--color-rose); text-align: center;">📚 9개 과목 · 단계별 학습</h2>
+        `;
+
+        // 단계별 과목 표
+        const colorMap = {
+          'basic': '#e8f4f8',
+          'advanced': '#ffe8f4',
+          'finalize': '#f8e8ff'
+        };
+
+        courses.forEach(course => {
+          html += `
+            <div style="background: ${colorMap[course.class]}; border-left: 4px solid var(--color-rose); padding: 20px; margin-bottom: 20px; border-radius: 8px;">
+              <h3 style="color: var(--color-text); margin-top: 0;">${course.emoji} ${course.level}</h3>
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+          `;
+
+          course.items.forEach(item => {
+            const link = course.level === '기초' ? 'page.html?id=기초반' : 'page.html?id=실무반';
+            html += `
+              <a href="${link}" style="
+                display: block;
+                padding: 12px;
+                background: white;
+                border: 1px solid var(--color-border);
+                border-radius: 6px;
+                text-decoration: none;
+                color: var(--color-text);
+                font-size: 13px;
+                text-align: center;
+                transition: all 0.3s;
+              " onmouseover="this.style.borderColor='var(--color-rose)'; this.style.boxShadow='0 4px 12px rgba(236, 72, 153, 0.15)';"
+                 onmouseout="this.style.borderColor='var(--color-border)'; this.style.boxShadow='none';">${item}</a>
+            `;
+          });
+
+          html += `</div></div>`;
+        });
+
+        html += `</div>`;
+
+        // 맨 아래 핵심 인용 & 버튼
+        html += `
+          <div style="background: #f5f5f5; border-left: 4px solid var(--color-rose); padding: 20px; border-radius: 8px; margin-bottom: 40px;">
+            <p style="margin: 0; font-size: 16px; font-weight: bold; color: var(--color-text);">"내 PC에서 돌아가는 나만의 AI"</p>
+            <p style="margin: 8px 0 0; color: var(--color-text-light); font-size: 14px;">외부 API 없이 로컬 PC에서 오픈 모델을 실행하고, 회사 문서로 답하는 챗봇을 직접 만들어 운영합니다.</p>
+          </div>
+
+          <div style="text-align: center; display: flex; gap: 10px; justify-content: center; flex-wrap: wrap;">
+            <a href="page.html?id=기초반" class="btn btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 24px; background-color: #667eea; color: white; border-radius: 6px;">🌱 기초반 보기</a>
+            <a href="page.html?id=실무반" class="btn btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 24px; background-color: #f5576c; color: white; border-radius: 6px;">🚀 실무반 보기</a>
+            <a href="page.html?id=하나봇" class="btn btn-primary" style="display: inline-block; text-decoration: none; padding: 12px 24px; background-color: var(--color-rose); color: white; border-radius: 6px;">🤖 하나봇에게 묻기</a>
+          </div>
+        `;
+
+        document.getElementById('pageBody').innerHTML = html;
+      } catch (error) {
+        console.error('School info error:', error);
+        document.getElementById('pageBody').innerHTML = `<div class="error">학원소개를 불러올 수 없습니다: ${error.message}</div>`;
+      }
+    }
+
     // [3-3] 과정 테이블 렌더링 (기초반/실무반)
     async function renderCourseTable(courseType) {
       document.getElementById('pageTitle').textContent = courseType === '기초반' ? '기초반 (4주)' : '실무반 (8주)';
@@ -1112,6 +1215,12 @@
       }
       if (pageId === '실무반') {
         renderCourseTable('실무반');
+        return;
+      }
+
+      // [3-3] 학원소개 특수 처리
+      if (pageId === '학원소개') {
+        renderSchoolInfo();
         return;
       }
 
