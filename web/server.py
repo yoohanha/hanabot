@@ -23,7 +23,7 @@ from fastapi.staticfiles import StaticFiles
 # [3-1] 하나봇 RAG 임포트
 from hanabot.rag import answer_question, get_vector_store
 # [3-3] 웹 서비스 임포트
-from web.services import create_consult, reserve_gpu
+from web.services import create_consult, reserve_gpu, calc_fee, enroll
 
 # .env 로드
 load_dotenv()
@@ -309,6 +309,31 @@ async def api_reserve_list(date: str = ''):
         filtered_reserves = all_reserves
 
     return JSONResponse({'date': date, 'reserves': filtered_reserves})
+
+
+# [3-5] 수강료 계산 엔드포인트
+@app.post('/api/fee')
+async def api_fee(request_body: dict):
+    """수강료를 계산 (저장하지 않음)"""
+    course = request_body.get('course', '')
+    months = request_body.get('months', 0)
+    discount_type = request_body.get('discount_type', '없음')
+
+    result = calc_fee(course, months, discount_type)
+    return JSONResponse(result)
+
+
+# [3-5] 수강 신청 엔드포인트
+@app.post('/api/enroll')
+async def api_enroll(request_body: dict):
+    """수강을 신청하고 저장"""
+    student_id = request_body.get('student_id', '')
+    course = request_body.get('course', '')
+    months = request_body.get('months', 0)
+    discount_type = request_body.get('discount_type', '없음')
+
+    result = enroll(student_id, course, months, discount_type)
+    return JSONResponse(result)
 
 
 # [2-1] 정적 파일 제공

@@ -17,6 +17,13 @@ GPU_WORK_START = 9  # 09:00
 GPU_WORK_END = 21  # 21:00
 GPU_PC_COUNT = 4  # GPU-1 ~ GPU-4
 
+# [3-5] 수강 신청 규칙 (맨 위에 모아놨음)
+BASIC_MONTHLY_FEE = 300000  # 기초반 월 30만 원
+ADVANCED_MONTHLY_FEE = 500000  # 실무반 월 50만 원
+RETAKE_DISCOUNT = 0.5  # 50% 할인
+FRIEND_DISCOUNT = 0.1  # 10% 할인
+ENROLLS_FILE = PROJECT_ROOT / 'web' / 'data' / 'enrolls.json'
+
 # [3-3] 상담 신청 함수
 def create_consult(student_id: str, course: str, desired_time: str, inquiry: str) -> dict:
     """
@@ -290,4 +297,123 @@ def reserve_gpu(student_id: str, date_str: str, start_time_str: str, duration: i
         'success': True,
         'message': f'예약이 완료되었습니다. 예약 번호: {reserve_data["reserve_id"]}',
         'reserve_id': reserve_data['reserve_id']
+    }
+
+
+# [3-5] 수강료 계산 함수
+def calc_fee(course: str, months: int, discount_type: str) -> dict:
+    """
+    수강료를 계산.
+
+    Args:
+        course: 과정 (기초반, 실무반)
+        months: 개월 수
+        discount_type: 할인 종류 (없음, 재수강, 친구)
+
+    Returns:
+        dict: {'original_fee': int, 'discount': int, 'final_fee': int, 'message': str}
+    """
+
+    # 1. 기본 금액 계산
+    if course == '기초반':
+        base_fee = BASIC_MONTHLY_FEE * months
+    elif course == '실무반':
+        base_fee = ADVANCED_MONTHLY_FEE * months
+    else:
+        return {'error': '과정을 정확히 선택해주세요'}
+
+    # 2. 할인 적용
+    discount_amount = 0
+    discount_name = ''
+
+    if discount_type == '재수강':
+        discount_amount = int(base_fee * RETAKE_DISCOUNT)
+        discount_name = '재수강 50% 할인'
+    elif discount_type == '친구':
+        discount_amount = int(base_fee * FRIEND_DISCOUNT)
+        discount_name = '친구와 함께 10% 할인'
+
+    final_fee = base_fee - discount_amount
+
+    return {
+        'original_fee': base_fee,
+        'discount_amount': discount_amount,
+        'discount_name': discount_name,
+        'final_fee': final_fee,
+        'message': f'원래 {base_fee:,}원 - {discount_name} {discount_amount:,}원 = 낼 금액 {final_fee:,}원' if discount_name else f'낼 금액: {final_fee:,}원'
+    }
+
+
+# [3-5] 수강 신청 함수
+def enroll(student_id: str, course: str, months: int, discount_type: str) -> dict:
+    """
+    수강을 신청하고 저장.
+
+    Args:
+        student_id: 학번 (예: HANA-001)
+        course: 과정 (기초반, 실무반)
+        months: 개월 수
+        discount_type: 할인 종류 (없음, 재수강, 친구)
+
+    Returns:
+        dict: {'success': bool, 'message': str, 'enroll_id': str, 'final_fee': int}
+    """
+
+    # 1. 입력 검증
+    empty_fields = []
+    if not student_id or not student_id.strip():
+        empty_fields.append('학번')
+    if not course or course == '':
+        empty_fields.append('과정')
+    if not months or months <= 0:
+        empty_fields.append('개월 수')
+
+    if empty_fields:
+        return {
+            'success': False,
+            'message': f"다음 항목을 입력해주세요: {', '.join(empty_fields)}"
+        }
+
+    # 2. 금액 계산
+    fee_result = calc_fee(course, months, discount_type)
+    if 'error' in fee_result:
+        return {'success': False, 'message': fee_result['error']}
+
+    # 3. 신청 번호 생성
+    enrolls = []
+    if ENROLLS_FILE.exists():
+        try:
+            with open(ENROLLS_FILE, 'r', encoding='utf-8') as f:
+                enrolls = json.load(f)
+        except json.JSONDecodeError:
+            enrolls = []
+
+    enroll_number = len(enrolls) + 1
+    enroll_id = f"E-{enroll_number:04d}"
+
+    # 4. 데이터 저장
+    enroll_data = {
+        'enroll_id': enroll_id,
+        'student_id': student_id.strip(),
+        'course': course,
+        'months': months,
+        'discount_type': discount_type,
+        'original_fee': fee_result['original_fee'],
+        'discount_amount': fee_result['discount_amount'],
+        'final_fee': fee_result['final_fee'],
+        'created_at': datetime.now(ZoneInfo('Asia/Seoul')).isoformat()
+    }
+
+    enrolls.append(enroll_data)
+
+    # 파일 저장
+    ENROLLS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    with open(ENROLLS_FILE, 'w', encoding='utf-8') as f:
+        json.dump(enrolls, f, ensure_ascii=False, indent=2)
+
+    return {
+        'success': True,
+        'message': f'신청이 완료되었습니다. 신청 번호: {enroll_id}',
+        'enroll_id': enroll_id,
+        'final_fee': fee_result['final_fee']
     }
