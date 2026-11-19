@@ -925,10 +925,10 @@
         }
 
         const courseText = docs['학원 소개'][courseType];
-        const lines = courseText.split('\n');
+        const lines = courseText.split('\n').filter(l => l.trim());
 
-        // 첫 문장 (소개)
-        const intro = lines[0];
+        // 첫 문장 (소개) - 마크다운 변환
+        const intro = markdownToHtml(lines[0]);
 
         // 과목 추출
         const courses = [];
@@ -944,12 +944,13 @@
           'AI 윤리와 보안': '🛡️'
         };
 
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i].startsWith('- **')) {
-            const match = lines[i].match(/- \*\*(.+?)\*\*: (.+)/);
+        for (let i = 1; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line.startsWith('- **')) {
+            const match = line.match(/- \*\*(.+?)\*\*:\s*(.+)/);
             if (match) {
-              const name = match[1];
-              const desc = match[2];
+              const name = match[1].trim();
+              const desc = match[2].trim();
               courses.push({
                 name: name,
                 desc: desc,
@@ -960,7 +961,7 @@
         }
 
         // HTML 테이블 생성
-        let html = `<p style="margin-bottom: 20px; color: var(--color-text); font-size: 16px;">${intro}</p>`;
+        let html = `<div style="margin-bottom: 20px; color: var(--color-text); font-size: 16px;">${intro}</div>`;
         html += `<div style="overflow-x: auto;">
           <table style="width: 100%; border-collapse: collapse; border: 1px solid var(--color-border); margin-bottom: 20px;">
             <thead>
@@ -972,13 +973,17 @@
             </thead>
             <tbody>`;
 
-        courses.forEach((course, idx) => {
-          html += `<tr style="border: 1px solid var(--color-border); ${idx % 2 === 1 ? 'background-color: #f9f9f9;' : ''}">
-            <td style="padding: 12px; text-align: center; border: 1px solid var(--color-border); font-weight: bold;">${idx + 1}</td>
-            <td style="padding: 12px; border: 1px solid var(--color-border);"><strong>${course.emoji} ${course.name}</strong></td>
-            <td style="padding: 12px; border: 1px solid var(--color-border);">${course.desc}</td>
-          </tr>`;
-        });
+        if (courses.length > 0) {
+          courses.forEach((course, idx) => {
+            html += `<tr style="border: 1px solid var(--color-border); ${idx % 2 === 1 ? 'background-color: #f9f9f9;' : ''}">
+              <td style="padding: 12px; text-align: center; border: 1px solid var(--color-border); font-weight: bold;">${idx + 1}</td>
+              <td style="padding: 12px; border: 1px solid var(--color-border);"><strong>${course.emoji} ${course.name}</strong></td>
+              <td style="padding: 12px; border: 1px solid var(--color-border);">${course.desc}</td>
+            </tr>`;
+          });
+        } else {
+          html += `<tr><td colspan="3" style="padding: 12px; text-align: center; color: var(--color-text-light);">과목 데이터를 불러올 수 없습니다.</td></tr>`;
+        }
 
         html += `</tbody></table></div>`;
 
@@ -990,8 +995,8 @@
 
         document.getElementById('pageBody').innerHTML = html;
       } catch (error) {
-        console.error(error);
-        document.getElementById('pageBody').innerHTML = `<div class="error">데이터를 불러올 수 없습니다.</div>`;
+        console.error('Course table error:', error);
+        document.getElementById('pageBody').innerHTML = `<div class="error">데이터를 불러올 수 없습니다: ${error.message}</div>`;
       }
     }
 
