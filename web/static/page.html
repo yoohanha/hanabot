@@ -912,6 +912,15 @@
       updateFee();
     }
 
+    // [3-3] 마크다운 HTML 변환 (로컬 정의)
+    function markdownToHtmlLocal(text) {
+      if (!text) return '';
+      text = text.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      text = text.replace(/^- /gm, '• ');
+      const lines = text.split('\n\n');
+      return lines.map(p => '<p>' + p.replace(/\n/g, '<br>') + '</p>').join('');
+    }
+
     // [3-3] 과정 테이블 렌더링 (기초반/실무반)
     async function renderCourseTable(courseType) {
       document.getElementById('pageTitle').textContent = courseType === '기초반' ? '기초반 (4주)' : '실무반 (8주)';
@@ -928,7 +937,7 @@
         const lines = courseText.split('\n').filter(l => l.trim());
 
         // 첫 문장 (소개) - 마크다운 변환
-        const intro = markdownToHtml(lines[0]);
+        const intro = markdownToHtmlLocal(lines[0]);
 
         // 과목 추출
         const courses = [];
