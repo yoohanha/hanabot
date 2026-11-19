@@ -1,13 +1,14 @@
 /* [2-1] 하나 AI 학원 웹 상호작용 */
 
 // [2-1] 시간표 데이터 (API에서 로드)
+// [3-1] 새 커리큘럼 적용
 let SCHEDULE_DATA = {
   0: { name: '일요일', morning: '휴원', afternoon: '휴원' },
-  1: { name: '월요일', morning: '생성AI 기초, 프롬프트 (101호)', afternoon: '파이썬 기초 (102호)' },
-  2: { name: '화요일', morning: 'LangChain (101호)', afternoon: 'RAG (102호)' },
-  3: { name: '수요일', morning: 'Fine-tuning (101호)', afternoon: 'LLMOps (102호)' },
-  4: { name: '목요일', morning: '바이브코딩 (101호)', afternoon: '웹 서비스/FastAPI (102호)' },
-  5: { name: '금요일', morning: 'Docker, Kubernetes (101호)', afternoon: '프로젝트 & 자습 (102호)' },
+  1: { name: '월요일', morning: 'AI 기초 소양 (101호)', afternoon: '생성형 AI 활용 (102호)' },
+  2: { name: '화요일', morning: '프롬프트 엔지니어링 (101호)', afternoon: '바이브 코딩 (102호)' },
+  3: { name: '수요일', morning: 'AI 업무 자동화·ERP (101호)', afternoon: 'Private LLM ① (102호)' },
+  4: { name: '목요일', morning: 'Private LLM ② (101호)', afternoon: 'AI 에이전트 (102호)' },
+  5: { name: '금요일', morning: '에이전틱 AI (101호)', afternoon: 'AI 윤리와 보안·프로젝트 (102호)' },
   6: { name: '토요일', morning: '휴원', afternoon: '휴원' }
 };
 
@@ -18,14 +19,14 @@ async function loadScheduleData() {
     const docs = await response.json();
 
     if (docs['시간표']) {
-      // RAG_PLAN.md의 시간표 데이터를 파싱
+      // [3-1] RAG_PLAN.md의 시간표 데이터를 파싱 (새 커리큘럼)
       SCHEDULE_DATA = {
         0: { name: '일요일', morning: '휴원', afternoon: '휴원' },
-        1: { name: '월요일', morning: docs['시간표']['월요일']?.split('\n')[0] || '생성AI 기초, 프롬프트 (101호)', afternoon: '파이썬 기초 (102호)' },
-        2: { name: '화요일', morning: docs['시간표']['화요일']?.split('\n')[0] || 'LangChain (101호)', afternoon: 'RAG (102호)' },
-        3: { name: '수요일', morning: docs['시간표']['수요일']?.split('\n')[0] || 'Fine-tuning (101호)', afternoon: 'LLMOps (102호)' },
-        4: { name: '목요일', morning: docs['시간표']['목요일']?.split('\n')[0] || '바이브코딩 (101호)', afternoon: '웹 서비스/FastAPI (102호)' },
-        5: { name: '금요일', morning: docs['시간표']['금요일']?.split('\n')[0] || 'Docker, Kubernetes (101호)', afternoon: '프로젝트 & 자습 (102호)' },
+        1: { name: '월요일', morning: docs['시간표']['월요일']?.split('\n')[0] || 'AI 기초 소양 (101호)', afternoon: '생성형 AI 활용 (102호)' },
+        2: { name: '화요일', morning: docs['시간표']['화요일']?.split('\n')[0] || '프롬프트 엔지니어링 (101호)', afternoon: '바이브 코딩 (102호)' },
+        3: { name: '수요일', morning: docs['시간표']['수요일']?.split('\n')[0] || 'AI 업무 자동화·ERP (101호)', afternoon: 'Private LLM ① (102호)' },
+        4: { name: '목요일', morning: docs['시간표']['목요일']?.split('\n')[0] || 'Private LLM ② (101호)', afternoon: 'AI 에이전트 (102호)' },
+        5: { name: '금요일', morning: docs['시간표']['금요일']?.split('\n')[0] || '에이전틱 AI (101호)', afternoon: 'AI 윤리와 보안·프로젝트 (102호)' },
         6: { name: '토요일', morning: '휴원', afternoon: '휴원' }
       };
 
