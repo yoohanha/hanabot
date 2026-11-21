@@ -17,10 +17,6 @@ function initializeChatUI() {
           <button class="chat-close" id="chatClose">✕</button>
         </div>
         <div class="chat-messages" id="chatMessages">
-          <div class="chat-message bot">
-            <img src="assets/brand/app_icon.png" alt="하나 AI 채팅봇" style="width: 40px; height: 40px; border-radius: 8px; margin-right: 10px; vertical-align: middle;">
-            <div class="message-content" style="display: inline-block; vertical-align: middle;">안녕하세요! 하나 AI 학원 규정을 물어보세요.</div>
-          </div>
         </div>
         <div class="chat-input-area">
           <input type="text" class="chat-input" id="chatInput" placeholder="질문을 입력하세요..." autocomplete="off">
@@ -45,10 +41,82 @@ function initializeChatUI() {
   // HTML 추가
   document.body.insertAdjacentHTML('beforeend', chatModalHtml);
   document.body.insertAdjacentHTML('beforeend', floatingButtonsHtml);
+
+  // [3-3] 저장된 채팅 내용 복구
+  loadChatHistory();
+}
+
+// [3-3] localStorage에 채팅 내용 저장
+function saveChatHistory() {
+  const chatMessages = document.getElementById('chatMessages');
+  if (!chatMessages) return;
+
+  const messages = [];
+  chatMessages.querySelectorAll('.chat-message').forEach(msg => {
+    const isBot = msg.classList.contains('bot');
+    const content = msg.querySelector('.message-content')?.innerHTML || '';
+    messages.push({
+      type: isBot ? 'bot' : 'user',
+      content: content
+    });
+  });
+
+  localStorage.setItem('hanabotChatHistory', JSON.stringify(messages));
+}
+
+// [3-3] localStorage에서 채팅 내용 복구
+function loadChatHistory() {
+  const chatMessages = document.getElementById('chatMessages');
+  if (!chatMessages) return;
+
+  const savedHistory = localStorage.getItem('hanabotChatHistory');
+
+  if (savedHistory) {
+    try {
+      const messages = JSON.parse(savedHistory);
+      messages.forEach(msg => {
+        const msgDiv = document.createElement('div');
+        msgDiv.className = `chat-message ${msg.type}`;
+        msgDiv.innerHTML = `<div class="message-content">${msg.content}</div>`;
+        chatMessages.appendChild(msgDiv);
+      });
+    } catch (e) {
+      console.error('채팅 내용 복구 실패:', e);
+      // 기본 메시지 표시
+      showInitialChatMessage();
+    }
+  } else {
+    // 처음 방문 시 기본 메시지 표시
+    showInitialChatMessage();
+  }
+}
+
+// [3-3] 초기 채팅 메시지 표시
+function showInitialChatMessage() {
+  const chatMessages = document.getElementById('chatMessages');
+  if (!chatMessages) return;
+
+  const botDiv = document.createElement('div');
+  botDiv.className = 'chat-message bot';
+  botDiv.innerHTML = `
+    <div class="message-content">
+      <img src="assets/brand/app_icon.png" alt="하나 AI 채팅봇" style="width: 40px; height: 40px; border-radius: 8px; margin-right: 10px; vertical-align: middle;">
+      <span style="display: inline-block; vertical-align: middle;">안녕하세요! 하나 AI 학원 규정을 물어보세요.</span>
+    </div>
+  `;
+  chatMessages.appendChild(botDiv);
+
+  // [3-3] 초기 메시지 저장
+  saveChatHistory();
 }
 
 // [3-3] 초기화 시 UI 생성
 initializeChatUI();
+
+// [3-3] 페이지 떠날 때 채팅 초기화
+window.addEventListener('beforeunload', function() {
+  localStorage.removeItem('hanabotChatHistory');
+});
 
 // [3-3] 마크다운을 HTML로 변환
 function markdownToHtml(text) {
@@ -424,6 +492,9 @@ function initializeChat() {
     // 자동 스크롤
     chatMessages.scrollTop = chatMessages.scrollHeight;
 
+    // [3-3] 메시지 저장
+    saveChatHistory();
+
     // 서버에 메시지 전송
     try {
       const response = await fetch('/chat', {
@@ -471,12 +542,18 @@ function initializeChat() {
 
       // 자동 스크롤
       chatMessages.scrollTop = chatMessages.scrollHeight;
+
+      // [3-3] 메시지 저장
+      saveChatHistory();
     } catch (error) {
       console.error('채팅 오류:', error);
       const botDiv = document.createElement('div');
       botDiv.className = 'chat-message bot';
       botDiv.innerHTML = `<div class="message-content">오류가 발생했습니다.</div>`;
       chatMessages.appendChild(botDiv);
+
+      // [3-3] 메시지 저장
+      saveChatHistory();
     } finally {
       isSending = false;
     }
