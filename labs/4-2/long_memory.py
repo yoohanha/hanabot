@@ -4,6 +4,7 @@
 import sys
 import json
 import re
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -189,6 +190,34 @@ def load_memory(student_id: str) -> str:
 
 
 # ============================================================================
+# 메시지 트리밍 함수
+# ============================================================================
+
+def _trim_messages_preserving_pairs(messages: list, max_count: int) -> list:
+    """
+    [4-2] 최근 max_count개 메시지를 유지하되, ToolMessage 짝을 보존
+    AIMessage와 ToolMessage는 항상 함께 유지
+    """
+    if len(messages) <= max_count:
+        return messages
+
+    # 뒤에서부터 카운트하면서 의미 있는 경계 찾기
+    # ToolMessage로 시작하면 안 되므로 AIMessage 또는 HumanMessage 위치부터 시작
+    result = []
+    for i in range(len(messages) - 1, -1, -1):
+        msg = messages[i]
+        result.insert(0, msg)
+
+        if len(result) >= max_count:
+            # max_count에 도달했는데 ToolMessage로 시작하면 하나 제거
+            if isinstance(result[0], ToolMessage):
+                result.pop(0)
+            break
+
+    return result
+
+
+# ============================================================================
 # 에이전트 루프 (메모리 로드 + 저장)
 # ============================================================================
 
@@ -223,6 +252,9 @@ def agent_loop_with_long_memory(llm_with_tools, student_id: str, user_question: 
             if hasattr(response, 'tool_calls') and response.tool_calls:
                 print(f"  🔧 [반복 {iteration}] 도구 호출")
 
+                # [4-2] AI 메시지는 한 번만 추가
+                messages.append(response)
+
                 for tool_call in response.tool_calls:
                     tool_name = tool_call.get('name', '알 수 없음')
                     tool_args = tool_call.get('args', {})
@@ -238,8 +270,7 @@ def agent_loop_with_long_memory(llm_with_tools, student_id: str, user_question: 
                     else:
                         tool_result = execute_tool(tool_name, tool_args)
 
-                    # 메시지 추가
-                    messages.append(response)
+                    # [4-2] ToolMessage 추가
                     messages.append(ToolMessage(
                         tool_call_id=tool_id,
                         content=tool_result
@@ -248,13 +279,20 @@ def agent_loop_with_long_memory(llm_with_tools, student_id: str, user_question: 
             else:
                 # 도구 없음 → 최종 답변
                 final_answer = response.content if hasattr(response, 'content') else str(response)
-                messages.append(response)
 
+                # [4-2] 도구 호출 실패 감지: JSON 형식으로 시작하면 기록하지 않음
+                if final_answer.strip().startswith('{"name":'):
+                    print(f"  ❌ [도구 호출 실패] {final_answer[:60]}")
+                    # 메시지에 추가하지 않음
+                    return "도구 호출 실패", messages
+
+                messages.append(response)
                 print(f"  💬 [답변] {final_answer[:60]}")
 
-                # 최근 10개 메시지만 메모리에 유지
+                # [4-2] 최근 10개 메시지 유지 (ToolMessage 짝 유지)
                 if len(messages) > 10:
-                    messages = messages[-10:]
+                    # AIMessage 또는 HumanMessage 위치부터 시작해서 10개 선택
+                    messages = _trim_messages_preserving_pairs(messages, 10)
 
                 return final_answer, messages
 
@@ -268,12 +306,19 @@ def agent_loop_with_long_memory(llm_with_tools, student_id: str, user_question: 
     try:
         final_response = llm_with_tools.invoke(messages)
         final_answer = final_response.content if hasattr(final_response, 'content') else str(final_response)
+
+        # [4-2] 도구 호출 실패 감지
+        if final_answer.strip().startswith('{"name":'):
+            print(f"  ❌ [도구 호출 실패] {final_answer[:60]}")
+            return "도구 호출 실패", messages
+
         messages.append(final_response)
     except:
         final_answer = "최종 답변 생성 실패"
 
+    # [4-2] 메시지 짝 유지하면서 10개 유지
     if len(messages) > 10:
-        messages = messages[-10:]
+        messages = _trim_messages_preserving_pairs(messages, 10)
 
     return final_answer, messages
 
@@ -296,10 +341,14 @@ def main():
     try:
         from langchain_ollama import ChatOllama
 
+        # [4-2] 대화 길이 · 응답 상한 · 메시지 짝 유지
         llm = ChatOllama(
             model=CHAT_MODEL,
             base_url=OLLAMA_BASE_URL,
-            temperature=0  # 가장 결정적인 답변 (정확한 도구 호출)
+            temperature=0,  # 가장 결정적인 답변 (정확한 도구 호출)
+            num_ctx=8192,
+            num_predict=512,
+            client_kwargs={"timeout": 120}
         )
 
         llm_with_tools = llm.bind_tools(tools)
@@ -329,8 +378,15 @@ def main():
         print(f"{label}: {question}")
         print('='*100)
 
+        # [4-2] 라운드 소요 시간 측정
+        start_time = time.time()
+
         # 에이전트 루프 실행
         answer, messages = agent_loop_with_long_memory(llm_with_tools, student_id, question, messages.copy(), max_iterations=3)
+
+        # [4-2] 소요 시간 출력
+        elapsed = time.time() - start_time
+        print(f"⏱️  소요 시간: {elapsed:.2f}초")
 
     # ========== 메모리 파일 확인 ==========
     print(f"\n\n{'='*100}")
@@ -366,7 +422,14 @@ def main():
     print(f"[라운드 4] 프로그램 재시작 후: {restart_question}")
     print('='*100)
 
+    # [4-2] 라운드 4 소요 시간 측정
+    start_time = time.time()
+
     answer, new_messages = agent_loop_with_long_memory(llm_with_tools, student_id, restart_question, new_messages, max_iterations=3)
+
+    # [4-2] 소요 시간 출력
+    elapsed = time.time() - start_time
+    print(f"⏱️  소요 시간: {elapsed:.2f}초")
 
     print(f"\n✅ 프로그램을 재시작해도 기억이 유지됨!")
 
