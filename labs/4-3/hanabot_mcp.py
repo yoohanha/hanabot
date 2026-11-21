@@ -22,6 +22,15 @@ async def main():
     print("[4-3] MCP 도구 비동기 실행 테스트")
     print(f"{'='*80}\n")
 
+    print("💡 입력 예시:")
+    print("   - 나는 HANA-007, 지금 몇 시야?")
+    print("   - 12월 첫 주 시간표 알려줘")
+    print("   - 실무반 2개월 친구 할인이면?\n")
+
+    print("📌 가상 학번 안내:")
+    print("   - HANA-001 ~ HANA-999 (유효한 학번)")
+    print("   - 나머지는 도구에서 조회됨\n")
+
     # MCP 클라이언트 생성
     hana_mcp_server_path = PROJECT_ROOT / "labs" / "4-3" / "hana_mcp_server.py"
     data_path = PROJECT_ROOT / "data"
