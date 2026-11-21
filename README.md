@@ -31,6 +31,11 @@
   - RAGAS: 답변 품질 점수 (Faithfulness, Relevance, Coherence)
   - 프롬프트 버전 관리
 
+- **4-1: AI 에이전트 · 도구 연결** (Tool Calling)
+  - LangChain `@tool` 데코레이터로 도구 4개 정의
+  - `ChatOllama.bind_tools()` 로 도구 연결
+  - 대화형 에이전트 (질문 입력 → 도구 선택 → 답변)
+
 ### **2부: 하나 AI 학원 웹사이트** (FastAPI + 바닐라 JS)
 ```
 정적 페이지 ← 마크다운 렌더링 ← RAG_PLAN.md
