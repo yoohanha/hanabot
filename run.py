@@ -183,9 +183,10 @@ def show_menu():
     print("6. 품질 점수 보기 (RAGAS · 5문항)")
     print("7. 하나 AI 학원 홈페이지 열기")
     print("8. AI 에이전트 · 도구 연결 (4-1)")
+    print("9. AI 에이전트 · 메모리 (4-2)")
     print("q. 종료\n")
     print("-" * 60)
-    return input("번호를 입력하세요 (1-8, q) > ").strip()
+    return input("번호를 입력하세요 (1-9, q) > ").strip()
 
 def run_hello_test():
     """Ollama 연결 테스트"""
@@ -288,11 +289,14 @@ def main():
         elif choice == '8':
             # [4-1] AI 에이전트 도구 연결
             run_command("labs/4-1/hana_tools.py", "AI 에이전트 · 도구 연결")
+        elif choice == '9':
+            # [4-2] AI 에이전트 메모리
+            run_command("labs/4-2/long_memory.py", "AI 에이전트 · 메모리")
         elif choice.lower() == 'q':
             print("프로그램을 종료합니다. 👋\n")
             break
         else:
-            print("❌ 잘못된 선택입니다. 1-8 또는 q를 입력하세요.\n")
+            print("❌ 잘못된 선택입니다. 1-9 또는 q를 입력하세요.\n")
 
 if __name__ == "__main__":
     main()

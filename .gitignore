@@ -56,6 +56,7 @@ logs/
 results/
 labs/*/output/
 labs/*/__pycache__/
+labs/4-2/data/memory/
 .omc/
 web/data/consults.json
 web/data/*.json
