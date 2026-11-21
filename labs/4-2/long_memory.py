@@ -13,9 +13,13 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from hanabot.config import OLLAMA_BASE_URL, CHAT_MODEL
 
-# 4-1 도구 임포트
+# [4-2] 4-1 도구 임포트
 sys.path.insert(0, str(PROJECT_ROOT / "labs" / "4-1"))
-from hana_tools import create_agent_with_tools, execute_tool
+from hana_tools import execute_tool, get_today, search_rules, calculate_course_fee, reserve_gpu_pc
+
+# [4-2] 취소 도구 임포트
+sys.path.insert(0, str(PROJECT_ROOT / "labs" / "4-2"))
+from cancel_tool import cancel_gpu_pc
 
 from langchain_core.tools import tool
 from langchain_core.messages import HumanMessage, ToolMessage, AIMessage
@@ -283,6 +287,12 @@ def main():
     print(f"📡 Ollama 주소: {OLLAMA_BASE_URL}\n")
 
     # 도구 초기화 (temperature=0 으로 정확한 도구 호출)
+    tools = [get_today, search_rules, calculate_course_fee, reserve_gpu_pc, cancel_gpu_pc, save_memory, load_memory]
+    print(f"✅ 도구 7개 로드 완료:")
+    for idx, tool in enumerate(tools, 1):
+        print(f"   {idx}. {tool.name}")
+    print()
+
     try:
         from langchain_ollama import ChatOllama
 
@@ -292,12 +302,12 @@ def main():
             temperature=0  # 가장 결정적인 답변 (정확한 도구 호출)
         )
 
-        tools = [get_today, search_rules, calculate_course_fee, reserve_gpu_pc, cancel_gpu_pc, save_memory, load_memory]
         llm_with_tools = llm.bind_tools(tools)
 
-        print(f"✅ 도구 로드됨: {', '.join([t.name for t in tools])}\n")
+        print(f"✅ Ollama 연결 & 도구 바인딩 완료\n")
     except Exception as e:
-        print(f"❌ 도구 로드 실패: {str(e)}")
+        print(f"❌ Ollama 연결 실패: {str(e)}")
+        print(f"   (Ollama가 실행 중인지 확인하세요: {OLLAMA_BASE_URL})")
         return
 
     print(f"\n{'#'*100}")
