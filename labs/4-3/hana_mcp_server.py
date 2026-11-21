@@ -22,8 +22,8 @@ from hana_tools import (
 sys.path.insert(0, str(PROJECT_ROOT / "labs" / "4-2"))
 from long_memory import cancel_gpu_pc
 
-from mcp.server import Server
-from mcp.types import Tool, TextContent, CallToolResult
+from mcp.server import Server, InitializationOptions
+from mcp.types import Tool, TextContent, CallToolResult, ServerCapabilities
 
 
 # ============================================================================
@@ -210,11 +210,16 @@ async def call_tool(name: str, arguments: dict) -> CallToolResult:
 # ============================================================================
 
 async def main():
-    # [4-3] stdio transport로 실행
+    # [4-3] stdio transport로 실행 (mcp SDK 1.x)
     from mcp.server.stdio import stdio_server
 
-    async with stdio_server(server):
-        pass
+    async with stdio_server() as (read_stream, write_stream):
+        init_opts = InitializationOptions(
+            server_name="hana-academy",
+            server_version="1.0.0",
+            capabilities=ServerCapabilities()
+        )
+        await server.run(read_stream, write_stream, init_opts)
 
 
 if __name__ == "__main__":

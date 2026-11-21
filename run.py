@@ -184,9 +184,10 @@ def show_menu():
     print("7. 하나 AI 학원 홈페이지 열기")
     print("8. AI 에이전트 · 도구 연결 (4-1)")
     print("9. AI 에이전트 · 메모리 (4-2)")
+    print("10. AI 에이전트 · MCP 도구 (4-3)")
     print("q. 종료\n")
     print("-" * 60)
-    return input("번호를 입력하세요 (1-9, q) > ").strip()
+    return input("번호를 입력하세요 (1-10, q) > ").strip()
 
 def run_hello_test():
     """Ollama 연결 테스트"""
@@ -292,6 +293,9 @@ def main():
         elif choice == '9':
             # [4-2] AI 에이전트 메모리
             run_command("labs/4-2/long_memory.py", "AI 에이전트 · 메모리")
+        elif choice == '10':
+            # [4-3] AI 에이전트 MCP 도구
+            run_command("labs/4-3/hanabot_mcp.py", "AI 에이전트 · MCP 도구")
         elif choice.lower() == 'q':
             print("프로그램을 종료합니다. 👋\n")
             break

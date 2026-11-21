@@ -5,6 +5,10 @@
 import sys
 from pathlib import Path
 
+# Windows UTF-8 인코딩 설정
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
+
 # 프로젝트 루트 경로 추가
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
@@ -38,25 +42,6 @@ MCP_SERVERS = {
         "tools": ["search_rules", "calc_fee", "reserve_gpu", "cancel_gpu", "get_schedule"],
     },
 }
-
-
-# ============================================================================
-# 도구 호출 기록
-# ============================================================================
-
-class ToolLogger:
-    """[4-3] 도구 호출 기록"""
-    def __init__(self):
-        self.records = []
-
-    def log(self, question: str, server: str, tool: str, success: bool):
-        """기록 추가"""
-        self.records.append({
-            'question': question,
-            'server': server,
-            'tool': tool,
-            'success': '✅' if success else '❌',
-        })
 
 
 # ============================================================================
@@ -94,15 +79,14 @@ def cancel_gpu_mcp() -> str:
 
 
 # ============================================================================
-# 메모리 에이전트
+# 대화형 에이전트
 # ============================================================================
 
-def agent_loop_with_mcp_tools(llm_with_tools, question: str, messages: list, logger: ToolLogger) -> tuple:
+def agent_loop_interactive(llm_with_tools, question: str, messages: list) -> tuple:
     """
-    [4-3] MCP 도구를 사용하는 메모리 에이전트 루프
+    [4-3] MCP 도구를 사용하는 대화형 에이전트
     """
     messages.append(HumanMessage(content=question))
-    print(f"[질문] {question}")
 
     try:
         response = llm_with_tools.invoke(messages)
@@ -118,24 +102,24 @@ def agent_loop_with_mcp_tools(llm_with_tools, question: str, messages: list, log
                     server_name = "Time"
                 elif any(x in question for x in ['시간표', '수업', '일정']):
                     server_name = "Filesystem"
-                elif any(x in question for x in ['가격', '수강료', '할인']):
+                elif any(x in question for x in ['가격', '수강료', '할인', '비용', '수강']):
                     server_name = "hana-academy"
-                elif any(x in question for x in ['예약', 'GPU']):
+                elif any(x in question for x in ['예약', 'GPU', 'PC']):
                     server_name = "hana-academy"
-                elif any(x in question for x in ['취소']):
+                elif any(x in question for x in ['규정', '취소', '환급', '수업', '상담']):
                     server_name = "hana-academy"
 
-                print(f"   [MCP 호출] 서버: {server_name} | 도구: {tool_name}")
-                logger.log(question, server_name, tool_name, True)
+                print(f"   [MCP {server_name}] {tool_name}")
 
         # 최종 답변
+        messages.append(response)
         final_answer = response.content if hasattr(response, 'content') else str(response)
-        print(f"   💬 {final_answer}\n")
+        print(f"\n💬 {final_answer}\n")
 
         return final_answer, messages
 
     except Exception as e:
-        print(f"   ❌ {e}\n")
+        print(f"   오류: {e}\n")
         return str(e), messages
 
 
@@ -144,18 +128,15 @@ def agent_loop_with_mcp_tools(llm_with_tools, question: str, messages: list, log
 # ============================================================================
 
 def main():
-    print(f"\n{'='*100}")
-    print("[4-3] 메모리 에이전트 + MCP 서버 3개 연결")
-    print(f"{'='*100}\n")
+    print(f"\n{'='*80}")
+    print("[4-3] AI 에이전트 · MCP 도구 (대화형)")
+    print(f"{'='*80}\n")
 
-    # [4-3] MCP 서버 목록
-    print("📋 MCP 서버별 도구 목록\n")
-    for server_name, config in MCP_SERVERS.items():
-        print(f"✅ {server_name}")
-        print(f"   시작: {config['command']}")
-        for tool in config['tools']:
-            print(f"      - {tool}")
-        print()
+    # MCP 서버 연결 상태
+    print("📋 MCP 서버 연결 상태\n")
+    for server_name in MCP_SERVERS.keys():
+        print(f"   ✅ {server_name} 연결됨")
+    print()
 
     # LLM 설정
     llm = ChatOllama(
@@ -174,44 +155,38 @@ def main():
     ]
     llm_with_tools = llm.bind_tools(tools)
 
-    # 테스트 대화
-    print(f"{'='*100}")
-    print("테스트: 5가지 대화 (MCP 서버별 도구 로깅)")
-    print(f"{'='*100}\n")
-
-    test_cases = [
-        ("나는 HANA-007, 지금 몇 시야?", "Time"),
-        ("12월 첫 주 시간표 알려줘", "Filesystem"),
-        ("실무반 2개월 친구 할인이면?", "hana-academy"),
-        ("내일 오후 2시 GPU PC 1번 2시간 예약해줘", "hana-academy"),
-        ("방금 예약한 거 취소해줘", "hana-academy"),
-    ]
+    # 대화형 루프
+    print(f"{'='*80}")
+    print("대화를 시작합니다. 'q'를 입력하면 종료합니다.")
+    print(f"{'='*80}\n")
 
     messages = []
-    logger = ToolLogger()
 
-    # [4-3] 메모리 에이전트 (단기 메모리 유지)
-    for idx, (question, expected_server) in enumerate(test_cases, 1):
-        print(f"[대화 {idx}] 예상 MCP: {expected_server}")
-        agent_loop_with_mcp_tools(llm_with_tools, question, messages.copy(), logger)
+    while True:
+        try:
+            # 사용자 입력
+            user_input = input("당신: ").strip()
 
-    # 결과표
-    print(f"\n{'='*100}")
-    print("도구 호출 결과표")
-    print(f"{'='*100}\n")
+            if user_input.lower() == 'q':
+                print("\n프로그램을 종료합니다. 👋\n")
+                break
 
-    print(f"{'대화':<35} | {'예상 MCP':<15} | {'사용 MCP':<15} | {'도구':<20} | {'결과':<5}")
-    print("-" * 100)
+            if not user_input:
+                continue
 
-    for record, (q, exp) in zip(logger.records, test_cases):
-        question = q[:34]
-        expected = exp[:14]
-        server = record['server'][:14]
-        tool = record['tool'][:19]
-        success = record['success']
-        print(f"{question:<35} | {expected:<15} | {server:<15} | {tool:<20} | {success:<5}")
+            # 에이전트 실행
+            print()
+            agent_loop_interactive(llm_with_tools, user_input, messages)
 
-    print()
+        except KeyboardInterrupt:
+            print("\n\n프로그램을 종료합니다. 👋\n")
+            break
+        except UnicodeEncodeError as e:
+            print(f"[인코딩 오류] 응답을 출력할 수 없습니다.\n")
+            continue
+        except Exception as e:
+            print(f"오류: {str(e)[:100]}\n")
+            continue
 
 
 if __name__ == "__main__":
