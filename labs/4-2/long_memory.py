@@ -3,6 +3,8 @@
 
 import sys
 import json
+import re
+from datetime import datetime
 from pathlib import Path
 
 # 프로젝트 루트 경로 추가
@@ -27,14 +29,36 @@ MEMORY_DIR = PROJECT_ROOT / "labs" / "4-2" / "data" / "memory"
 MEMORY_DIR.mkdir(parents=True, exist_ok=True)
 
 # 저장 금지 필드
-FORBIDDEN_FIELDS = {'이름', '전화번호', '주민번호', 'name', 'phone', 'ssn'}
-# 저장 허용 필드
-ALLOWED_FIELDS = {'관심_과정', 'interest_course', '선호_시간', 'preferred_time', '자주_묻는_것', 'frequently_asked'}
+FORBIDDEN_FIELD_KEYWORDS = {'이름', '전화', '전화번호', '연락처', '휴대폰', '주민', '주민번호', 'name', 'phone', 'ssn'}
+
+# 저장 금지 패턴 (정규식)
+FORBIDDEN_PATTERNS = [
+    r'\d{3}-\d{3,4}-\d{4}',  # 휴대폰 번호: 010-1234-5678
+    r'\d{3}\d{4}\d{4}',      # 휴대폰 번호: 01012345678
+    r'\d{6}-\d{7}',           # 주민번호: 900101-1234567
+]
 
 
 # ============================================================================
 # 메모리 도구
 # ============================================================================
+
+def is_forbidden_field(key: str) -> bool:
+    """항목 이름이 금지된 개인정보인지 검사"""
+    key_lower = key.lower()
+    for forbidden in FORBIDDEN_FIELD_KEYWORDS:
+        if forbidden.lower() in key_lower:
+            return True
+    return False
+
+
+def is_forbidden_value(value: str) -> bool:
+    """값이 금지된 개인정보 패턴인지 검사"""
+    for pattern in FORBIDDEN_PATTERNS:
+        if re.search(pattern, str(value)):
+            return True
+    return False
+
 
 @tool
 def save_memory(student_id: str, key: str, value: str) -> str:
@@ -42,7 +66,9 @@ def save_memory(student_id: str, key: str, value: str) -> str:
     학생의 기억을 저장합니다 (파일에 영구 저장).
 
     저장 허용: 관심 과정, 선호 시간, 자주 묻는 것
-    저장 금지: 이름, 전화번호, 주민번호
+    저장 금지:
+      • 항목 이름: 이름, 전화, 전화번호, 연락처, 휴대폰, 주민, 주민번호
+      • 값: 휴대폰 번호(010-1234-5678), 주민번호(900101-1234567)
 
     Args:
         student_id: 학번 (예: HANA-007)
@@ -52,9 +78,13 @@ def save_memory(student_id: str, key: str, value: str) -> str:
     Returns:
         str: 저장 결과
     """
-    # 저장 금지 필드 검증
-    if key in FORBIDDEN_FIELDS:
-        return f"❌ 저장할 수 없는 정보입니다: {key}"
+    # 1. 저장 금지 필드명 검증
+    if is_forbidden_field(key):
+        return f"❌ 저장할 수 없는 정보입니다: {key} (보안/프라이버시)"
+
+    # 2. 저장 금지 패턴 검증
+    if is_forbidden_value(value):
+        return f"❌ 저장할 수 없는 정보입니다: {value} (개인정보 패턴 감지)"
 
     try:
         memory_file = MEMORY_DIR / f"{student_id}.json"
@@ -70,7 +100,7 @@ def save_memory(student_id: str, key: str, value: str) -> str:
 
         # 새 항목 추가
         memory[key] = value
-        memory['updated_at'] = str(Path(__file__).resolve().parent)  # 타임스탬프 대신 경로 저장
+        memory['updated_at'] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # 파일 저장
         with open(memory_file, 'w', encoding='utf-8') as f:
