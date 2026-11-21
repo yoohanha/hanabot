@@ -17,7 +17,7 @@ from web.services import calc_fee
 # LangChain 임포트
 from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 
 
 # ============================================================================
@@ -91,7 +91,7 @@ def create_agent_with_tools():
 
 def run_agent_question(llm_with_tools, question: str, question_num: int) -> dict:
     """
-    에이전트로 질문 실행
+    에이전트로 질문 실행 (도구 실행 포함)
 
     Returns:
         dict: {'question', 'tools_used', 'final_answer'}
@@ -100,31 +100,72 @@ def run_agent_question(llm_with_tools, question: str, question_num: int) -> dict
     print(f"[질문 {question_num}] {question}")
     print('='*80)
 
-    # 1. 에이전트에 질문 전송
-    print(f"\n📝 [질문 전송]")
-
-    response = llm_with_tools.invoke([HumanMessage(content=question)])
-
-    # 2. 응답 분석
-    print(f"\n🤔 [LLM 응답 분석]")
+    messages = [HumanMessage(content=question)]
     tools_called = []
+    final_answer = ""
 
-    # tool_calls가 있는지 확인
-    if hasattr(response, 'tool_calls') and response.tool_calls:
-        for tool_call in response.tool_calls:
-            tool_name = tool_call.get('name', '알 수 없음')
-            tool_args = tool_call.get('args', {})
-            tools_called.append({
-                'name': tool_name,
-                'args': tool_args
-            })
-            print(f"   • 도구: {tool_name}")
-            print(f"   • 인자: {tool_args}")
+    # 최대 3번 반복 (도구 체인 대응)
+    for attempt in range(3):
+        try:
+            response = llm_with_tools.invoke(messages)
 
-    # 3. 최종 답변 추출
-    print(f"\n💬 [최종 답변]")
-    final_answer = response.content if hasattr(response, 'content') else str(response)
-    print(f"   {final_answer[:200]}")
+            # tool_calls가 있는지 확인
+            if hasattr(response, 'tool_calls') and response.tool_calls:
+                print(f"\n🔧 [도구 호출 {attempt + 1}]")
+
+                for tool_call in response.tool_calls:
+                    tool_name = tool_call.get('name', '알 수 없음')
+                    tool_args = tool_call.get('args', {})
+                    tool_id = tool_call.get('id', f'call_{attempt}')
+
+                    tools_called.append({'name': tool_name, 'args': tool_args})
+
+                    print(f"   • 도구: {tool_name}")
+                    print(f"   • 인자: {tool_args}")
+
+                    # 도구 실행 (도구 함수의 invoke 메서드 호출)
+                    if tool_name == 'get_today':
+                        tool_result = get_today.invoke({})
+                    elif tool_name == 'calculate_course_fee':
+                        tool_result = calculate_course_fee.invoke({
+                            'course': tool_args.get('course', ''),
+                            'months': tool_args.get('months', 0),
+                            'discount_type': tool_args.get('discount_type', '없음')
+                        })
+                    else:
+                        tool_result = "알 수 없는 도구"
+
+                    print(f"   • 결과: {tool_result[:100]}")
+
+                    # 대화에 ToolMessage 추가
+                    messages.append(response)
+                    messages.append(ToolMessage(
+                        tool_call_id=tool_id,
+                        content=tool_result
+                    ))
+
+            else:
+                # 도구 없음 → 최종 답변
+                final_answer = response.content if hasattr(response, 'content') else str(response)
+                print(f"\n💬 [최종 답변]")
+                print(f"   {final_answer[:200]}")
+                break
+
+        except Exception as e:
+            error_msg = f"오류: {str(e)}"
+            print(f"❌ {error_msg}")
+            final_answer = error_msg
+            break
+
+    # 도구를 실행한 후 최종 응답 한 번 더 호출
+    if tools_called and not final_answer:
+        try:
+            final_response = llm_with_tools.invoke(messages)
+            final_answer = final_response.content if hasattr(final_response, 'content') else str(final_response)
+            print(f"\n💬 [최종 답변]")
+            print(f"   {final_answer[:200]}")
+        except Exception as e:
+            final_answer = f"최종 답변 생성 오류: {str(e)}"
 
     return {
         'question': question,

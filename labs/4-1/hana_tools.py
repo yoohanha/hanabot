@@ -4,7 +4,7 @@
 import os
 import sys
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -19,7 +19,7 @@ from web.services import reserve_gpu as web_reserve_gpu
 # LangChain 임포트
 from langchain_core.tools import tool
 from langchain_ollama import ChatOllama
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, ToolMessage
 
 
 # ============================================================================
@@ -117,30 +117,94 @@ def reserve_gpu_pc(date: str, start_time: str, duration: int, pc_number: int, st
         str: 예약 결과 (성공/실패)
     """
     try:
-        # web/services.py의 reserve_gpu 호출
-        result = web_reserve_gpu(student_id, date, start_time, duration, pc_number)
+        # 1. 규칙 검증 (web/services.py 로직)
+        from web.services import GPU_MIN_DURATION, GPU_MAX_DURATION_PER_DAY, GPU_WORK_START, GPU_WORK_END, GPU_PC_COUNT
 
-        if result.get('success'):
-            # 성공한 예약을 labs/4-1/data/로도 저장
-            reserve_id = result.get('reserve_id', '')
-            save_to_local_data(
-                "reserves_local.json",
-                {
-                    'reserve_id': reserve_id,
-                    'student_id': student_id,
-                    'date': date,
-                    'start_time': start_time,
-                    'duration': duration,
-                    'pc_number': pc_number,
-                    'created_at': datetime.now().isoformat()
-                }
-            )
-            return f"✅ {result['message']}"
-        else:
-            return f"❌ {result['message']}"
+        # 입력 검증
+        if duration not in [GPU_MIN_DURATION, GPU_MAX_DURATION_PER_DAY]:
+            return f"❌ 이용 시간은 {GPU_MIN_DURATION}시간 또는 {GPU_MAX_DURATION_PER_DAY}시간만 가능해요"
+        if pc_number not in range(1, GPU_PC_COUNT + 1):
+            return f"❌ PC 번호는 1~{GPU_PC_COUNT} 사이여야 해요"
+
+        # 날짜 검증
+        try:
+            from datetime import datetime as dt
+            reserve_date = dt.strptime(date, '%Y-%m-%d').date()
+            today = dt.now().date()
+            if reserve_date < today:
+                return "❌ 지나간 날짜로는 예약할 수 없어요"
+            if reserve_date.weekday() >= 5:
+                return "❌ 평일(월~금)에만 예약할 수 있어요"
+        except ValueError:
+            return "❌ 날짜를 YYYY-MM-DD 형식으로 입력해주세요"
+
+        # 시간 검증
+        try:
+            time_parts = start_time.split(':')
+            hour = int(time_parts[0])
+            minute = int(time_parts[1])
+            if hour < GPU_WORK_START or hour >= GPU_WORK_END:
+                return f"❌ 예약은 평일 {GPU_WORK_START:02d}:00 ~ {GPU_WORK_END:02d}:00 사이에만 가능해요"
+            end_hour = hour + duration
+            if end_hour > GPU_WORK_END:
+                return f"❌ 예약은 평일 {GPU_WORK_START:02d}:00 ~ {GPU_WORK_END:02d}:00 사이에만 가능해요"
+        except (ValueError, IndexError):
+            return "❌ 시각을 HH:MM 형식으로 입력해주세요"
+
+        # 2. labs/4-1/data/ 에만 저장 (web/data 건드리지 않음)
+        reserve_number = 1
+        reserves_file = TOOLS_DATA_DIR / "reserves_local.json"
+
+        reserves = []
+        if reserves_file.exists():
+            try:
+                with open(reserves_file, 'r', encoding='utf-8') as f:
+                    reserves = json.load(f)
+            except json.JSONDecodeError:
+                reserves = []
+
+        # 중복 확인
+        for reserve in reserves:
+            if reserve['pc_number'] == pc_number and reserve['date'] == date:
+                res_start = reserve['start_hour']
+                res_duration = reserve['duration']
+                res_end = res_start + res_duration
+                new_start = hour
+                new_end = hour + duration
+                if not (new_end <= res_start or new_start >= res_end):
+                    return f"❌ 해당 시간에 GPU PC-{pc_number}은 이미 예약되어 있어요"
+
+        # 하루 최대 시간 확인
+        same_day_total = sum(r['duration'] for r in reserves if r['student_id'] == student_id and r['date'] == date)
+        if same_day_total + duration > GPU_MAX_DURATION_PER_DAY:
+            remaining = GPU_MAX_DURATION_PER_DAY - same_day_total
+            return f"❌ 하루 최대 {GPU_MAX_DURATION_PER_DAY}시간까지만 예약할 수 있어요 (남은 시간: {remaining}시간)"
+
+        # 예약 번호 생성
+        reserve_number = len([r for r in reserves if r['date'] == date]) + 1
+        reserve_id = f"R-{date.replace('-', '')}-{reserve_number:02d}"
+
+        # 데이터 저장
+        reserve_data = {
+            'reserve_id': reserve_id,
+            'student_id': student_id,
+            'date': date,
+            'start_hour': hour,
+            'start_time': start_time,
+            'duration': duration,
+            'pc_number': pc_number,
+            'created_at': datetime.now().isoformat()
+        }
+
+        reserves.append(reserve_data)
+
+        with open(reserves_file, 'w', encoding='utf-8') as f:
+            json.dump(reserves, f, ensure_ascii=False, indent=2)
+
+        return f"✅ 예약이 완료되었습니다. 예약 번호: {reserve_id}"
 
     except Exception as e:
-        return f"예약 오류: {str(e)}"
+        return f"❌ 예약 오류: {str(e)}"
 
 
 # ============================================================================
@@ -191,67 +255,121 @@ def create_agent_with_tools():
 # 에이전트 실행
 # ============================================================================
 
-def run_agent_question(llm_with_tools, question: str, question_num: int, expected_tools: list = None) -> dict:
+def execute_tool(tool_name: str, tool_args: dict) -> str:
+    """도구 실행하고 결과 반환"""
+    try:
+        if tool_name == 'get_today':
+            return get_today.invoke({})
+        elif tool_name == 'search_rules':
+            return search_rules.invoke({'question': tool_args.get('question', '')})
+        elif tool_name == 'calculate_course_fee':
+            return calculate_course_fee.invoke({
+                'course': tool_args.get('course', ''),
+                'months': tool_args.get('months', 0),
+                'discount_type': tool_args.get('discount_type', '없음')
+            })
+        elif tool_name == 'reserve_gpu_pc':
+            return reserve_gpu_pc.invoke({
+                'date': tool_args.get('date', ''),
+                'start_time': tool_args.get('start_time', ''),
+                'duration': tool_args.get('duration', 2),
+                'pc_number': tool_args.get('pc_number', 1),
+                'student_id': tool_args.get('student_id', 'HANA-001')
+            })
+        else:
+            return f"알 수 없는 도구: {tool_name}"
+    except Exception as e:
+        return f"도구 실행 오류: {str(e)}"
+
+
+def run_agent_question(llm_with_tools, question: str, question_num: int = None, expected_tools: list = None) -> dict:
     """
-    에이전트로 질문 실행
+    에이전트로 질문 실행 (도구 실행 포함)
 
     Returns:
-        dict: {'question', 'tools_used', 'final_answer', 'expected_tools', 'is_correct'}
+        dict: {'question', 'tools_used', 'tool_results', 'final_answer', 'expected_tools', 'is_correct'}
     """
-    print(f"\n{'='*80}")
-    print(f"[질문 {question_num}] {question}")
-    print('='*80)
+    if question_num:
+        print(f"\n{'='*80}")
+        print(f"[질문 {question_num}] {question}")
+        print('='*80)
 
-    # 1. 에이전트에 질문 전송
-    print(f"\n📝 [질문 전송]")
+    messages = [HumanMessage(content=question)]
+    tools_used = []
+    tool_results = []
+    final_answer = ""
 
-    try:
-        response = llm_with_tools.invoke([HumanMessage(content=question)])
+    # 최대 3번 반복 (도구 체인 대응)
+    for attempt in range(3):
+        try:
+            response = llm_with_tools.invoke(messages)
 
-        # 2. 응답 분석
-        print(f"\n🤔 [LLM 응답 분석]")
-        tools_called = []
+            # tool_calls가 있는지 확인
+            if hasattr(response, 'tool_calls') and response.tool_calls:
+                print(f"\n🔧 [도구 호출 {attempt + 1}]")
 
-        # tool_calls가 있는지 확인
-        if hasattr(response, 'tool_calls') and response.tool_calls:
-            for tool_call in response.tool_calls:
-                tool_name = tool_call.get('name', '알 수 없음')
-                tool_args = tool_call.get('args', {})
-                tools_called.append({
-                    'name': tool_name,
-                    'args': tool_args
-                })
-                print(f"   • 도구: {tool_name}")
-                print(f"   • 인자: {tool_args}")
+                for tool_call in response.tool_calls:
+                    tool_name = tool_call.get('name', '알 수 없음')
+                    tool_args = tool_call.get('args', {})
+                    tool_id = tool_call.get('id', f'call_{attempt}')
 
-        # 3. 최종 답변 추출
-        print(f"\n💬 [최종 답변]")
-        final_answer = response.content if hasattr(response, 'content') else str(response)
-        print(f"   {final_answer[:200]}")
+                    tools_used.append({'name': tool_name, 'args': tool_args})
 
-        # 4. 도구 선택 평가
-        tools_names = [t['name'] for t in tools_called]
-        expected_tools = expected_tools or []
-        is_correct = set(tools_names) == set(expected_tools)
+                    print(f"   • 도구: {tool_name}")
+                    print(f"   • 인자: {tool_args}")
 
-        return {
-            'question': question,
-            'tools_used': tools_called,
-            'final_answer': final_answer,
-            'expected_tools': expected_tools,
-            'is_correct': is_correct
-        }
+                    # 도구 실행
+                    tool_result = execute_tool(tool_name, tool_args)
+                    tool_results.append({
+                        'tool': tool_name,
+                        'result': tool_result
+                    })
 
-    except Exception as e:
-        error_msg = f"오류: {str(e)}"
-        print(f"❌ {error_msg}")
-        return {
-            'question': question,
-            'tools_used': [],
-            'final_answer': error_msg,
-            'expected_tools': expected_tools or [],
-            'is_correct': False
-        }
+                    print(f"   • 결과: {tool_result[:100]}")
+
+                    # 대화에 ToolMessage 추가
+                    messages.append(response)
+                    messages.append(ToolMessage(
+                        tool_call_id=tool_id,
+                        content=tool_result
+                    ))
+
+            else:
+                # 도구 없음 → 최종 답변
+                final_answer = response.content if hasattr(response, 'content') else str(response)
+                print(f"\n💬 [최종 답변]")
+                print(f"   {final_answer[:200]}")
+                break
+
+        except Exception as e:
+            error_msg = f"오류: {str(e)}"
+            print(f"❌ {error_msg}")
+            final_answer = error_msg
+            break
+
+    # 도구를 실행한 후 최종 응답 한 번 더 호출
+    if tools_used and not final_answer:
+        try:
+            final_response = llm_with_tools.invoke(messages)
+            final_answer = final_response.content if hasattr(final_response, 'content') else str(final_response)
+            print(f"\n💬 [최종 답변]")
+            print(f"   {final_answer[:200]}")
+        except Exception as e:
+            final_answer = f"최종 답변 생성 오류: {str(e)}"
+
+    # 도구 선택 평가
+    tools_names = [t['name'] for t in tools_used]
+    expected_tools = expected_tools or []
+    is_correct = set(tools_names) == set(expected_tools)
+
+    return {
+        'question': question,
+        'tools_used': tools_used,
+        'tool_results': tool_results,
+        'final_answer': final_answer,
+        'expected_tools': expected_tools,
+        'is_correct': is_correct
+    }
 
 
 # ============================================================================
@@ -319,37 +437,10 @@ def interactive_mode(llm_with_tools):
             continue
 
         # 에이전트 실행
-        try:
-            response = llm_with_tools.invoke([HumanMessage(content=user_input)])
+        result = run_agent_question(llm_with_tools, user_input)
 
-            # 도구 분석
-            tools_used = []
-            if hasattr(response, 'tool_calls') and response.tool_calls:
-                for tool_call in response.tool_calls:
-                    tool_name = tool_call.get('name', '알 수 없음')
-                    tool_args = tool_call.get('args', {})
-                    tools_used.append({'name': tool_name, 'args': tool_args})
-
-                print(f"\n🔧 도구 호출:")
-                for tool in tools_used:
-                    print(f"   • {tool['name']}")
-                    if tool['args']:
-                        for key, val in tool['args'].items():
-                            print(f"     - {key}: {val}")
-
-            # 답변
-            final_answer = response.content if hasattr(response, 'content') else str(response)
-            print(f"\n💬 답변:")
-            print(f"   {final_answer}\n")
-
-            results.append({
-                'question': user_input,
-                'tools_used': tools_used,
-                'final_answer': final_answer
-            })
-
-        except Exception as e:
-            print(f"\n❌ 오류: {str(e)}\n")
+        results.append(result)
+        print()
 
     # 대화 요약
     if results:
@@ -382,6 +473,33 @@ def demo_mode(llm_with_tools):
         expected_tools = q_data['expected_tools']
         result = run_agent_question(llm_with_tools, question, idx, expected_tools)
         results.append(result)
+
+    # ========== 상세 표 (질문 · 고른 도구 · 도구 결과 · 최종 답변) ==========
+    print(f"\n\n{'='*160}")
+    print("📊 에이전트 실행 결과 (질문 · 고른 도구 · 도구 결과 · 최종 답변)")
+    print('='*160)
+
+    for idx, result in enumerate(results, 1):
+        question = result['question']
+        tools_used = [t['name'] for t in result['tools_used']]
+        tools_used_str = ", ".join(tools_used) if tools_used else "없음"
+        tool_results = result['tool_results']
+        final_answer = result['final_answer']
+
+        print(f"\n[{idx}] 질문: {question}")
+        print(f"    고른 도구: {tools_used_str}")
+
+        if tool_results:
+            print(f"    도구 결과:")
+            for tr in tool_results:
+                result_preview = tr['result'][:60]
+                if len(tr['result']) > 60:
+                    result_preview += "..."
+                print(f"      • {tr['tool']}: {result_preview}")
+
+        print(f"    최종 답변: {final_answer[:80]}")
+        if len(final_answer) > 80:
+            print(f"               ...")
 
     # ========== 평가 표 ==========
     print(f"\n\n{'='*130}")
