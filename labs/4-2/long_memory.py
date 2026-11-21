@@ -60,6 +60,33 @@ def is_forbidden_value(value: str) -> bool:
     return False
 
 
+def validate_time_value(key: str, value: str) -> tuple[bool, str]:
+    """
+    시간 관련 값이 올바른 형식인지 검사
+
+    Returns:
+        (유효성, 메시지)
+        유효하지 않으면: (False, 에러 메시지)
+        유효하면: (True, 값)
+    """
+    if '시간' not in key.lower() and '시' not in key.lower():
+        return True, value
+
+    # 허용되는 시간 형식:
+    # 1. "오전/오후 + 숫자 + 시" (예: 오후 2시, 오전 10시)
+    # 2. "HH:MM" (예: 14:00)
+
+    # 형식 1: 오전/오후 + 숫자 + 시
+    if re.match(r'^(오전|오후)\s*\d{1,2}시$', value):
+        return True, value
+
+    # 형식 2: HH:MM
+    if re.match(r'^\d{1,2}:\d{2}$', value):
+        return True, value
+
+    return False, "시간을 다시 알려주세요 (예: 오후 2시, 14:00)"
+
+
 @tool
 def save_memory(student_id: str, key: str, value: str) -> str:
     """
@@ -69,6 +96,7 @@ def save_memory(student_id: str, key: str, value: str) -> str:
     저장 금지:
       • 항목 이름: 이름, 전화, 전화번호, 연락처, 휴대폰, 주민, 주민번호
       • 값: 휴대폰 번호(010-1234-5678), 주민번호(900101-1234567)
+      • 시간: "오전/오후 + 숫자 + 시" 또는 "HH:MM" 형식만
 
     Args:
         student_id: 학번 (예: HANA-007)
@@ -76,7 +104,7 @@ def save_memory(student_id: str, key: str, value: str) -> str:
         value: 값 (예: 실무반)
 
     Returns:
-        str: 저장 결과
+        str: 저장 결과 (실제 저장된 값 포함)
     """
     # 1. 저장 금지 필드명 검증
     if is_forbidden_field(key):
@@ -85,6 +113,11 @@ def save_memory(student_id: str, key: str, value: str) -> str:
     # 2. 저장 금지 패턴 검증
     if is_forbidden_value(value):
         return f"❌ 저장할 수 없는 정보입니다: {value} (개인정보 패턴 감지)"
+
+    # 3. 시간 값 검증
+    is_valid_time, time_msg = validate_time_value(key, value)
+    if not is_valid_time:
+        return f"❌ {time_msg}"
 
     try:
         memory_file = MEMORY_DIR / f"{student_id}.json"
@@ -106,7 +139,14 @@ def save_memory(student_id: str, key: str, value: str) -> str:
         with open(memory_file, 'w', encoding='utf-8') as f:
             json.dump(memory, f, ensure_ascii=False, indent=2)
 
-        return f"✅ 저장했습니다: {key} = {value}"
+        # 저장 확인: 파일에서 다시 읽어서 실제 저장된 값 반환
+        try:
+            with open(memory_file, 'r', encoding='utf-8') as f:
+                saved_memory = json.load(f)
+            saved_value = saved_memory.get(key, value)
+            return f"✅ {key} = {saved_value} 로 저장했어요"
+        except:
+            return f"✅ {key} = {value} 로 저장했어요"
 
     except Exception as e:
         return f"❌ 저장 오류: {str(e)}"
@@ -242,13 +282,18 @@ def main():
     print(f"🤖 Ollama 채팅 모델: {CHAT_MODEL}")
     print(f"📡 Ollama 주소: {OLLAMA_BASE_URL}\n")
 
-    # 도구 초기화
+    # 도구 초기화 (temperature=0 으로 정확한 도구 호출)
     try:
-        llm_with_tools, tools = create_agent_with_tools()
+        from langchain_ollama import ChatOllama
 
-        # save_memory, load_memory 도구 추가
-        tools = list(tools) + [save_memory, load_memory]
-        llm_with_tools = llm_with_tools.bind_tools(tools)
+        llm = ChatOllama(
+            model=CHAT_MODEL,
+            base_url=OLLAMA_BASE_URL,
+            temperature=0  # 가장 결정적인 답변 (정확한 도구 호출)
+        )
+
+        tools = [get_today, search_rules, calculate_course_fee, reserve_gpu_pc, cancel_gpu_pc, save_memory, load_memory]
+        llm_with_tools = llm.bind_tools(tools)
 
         print(f"✅ 도구 로드됨: {', '.join([t.name for t in tools])}\n")
     except Exception as e:
