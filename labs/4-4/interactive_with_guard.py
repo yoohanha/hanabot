@@ -4,6 +4,7 @@
 
 import sys
 import asyncio
+import time
 from pathlib import Path
 
 # Windows UTF-8 인코딩 설정
@@ -22,7 +23,7 @@ from guard_output import OutputGuard
 from hanabot.config import OLLAMA_BASE_URL, CHAT_MODEL
 from langchain_mcp_adapters.client import MultiServerMCPClient
 from langchain_ollama import ChatOllama
-from langchain_core.messages import HumanMessage, ToolMessage
+from langchain_core.messages import HumanMessage, ToolMessage, SystemMessage
 
 
 # ============================================================================
@@ -72,20 +73,24 @@ async def main():
     try:
         client = MultiServerMCPClient(connections=connections)
 
-        # 도구 테이블 구성
+        # 도구 테이블 구성 (필요한 도구만 선택)
         print("🔧 도구 테이블 로드 중...\n")
         tool_table = {}
+
+        # 필요한 도구 목록 정의
+        allowed_tools = {
+            "time": ["get_current_time"],
+            "filesystem": ["read_text_file", "list_directory"],
+            "hana-academy": ["get_today", "search_rules", "calc_fee", "reserve_gpu", "cancel_gpu"],
+        }
 
         for server_name in ["time", "filesystem", "hana-academy"]:
             try:
                 tools = await client.get_tools(server_name=server_name)
 
                 for tool in tools:
-                    if server_name == "filesystem":
-                        if not any(x in tool.name.lower() for x in ["read", "list", "search"]):
-                            continue
-
-                    tool_table[tool.name] = (server_name, tool)
+                    if tool.name in allowed_tools.get(server_name, []):
+                        tool_table[tool.name] = (server_name, tool)
 
             except Exception as e:
                 print(f"   ⚠️  {server_name}: {str(e)[:50]}")
@@ -105,7 +110,7 @@ async def main():
         tools_list = [tool for _, tool in tool_table.values()]
         llm_with_tools = llm.bind_tools(tools_list)
 
-        # 시스템 메시지
+        # 시스템 메시지 (SystemMessage 사용)
         system_msg = f"""당신은 하나 AI 학원의 Q&A 챗봇입니다.
 
 현재 로그인한 학번: {login_id}
@@ -121,9 +126,11 @@ async def main():
         print(f"{'='*80}")
         print("💬 대화를 시작합니다. 'q'를 입력하면 종료합니다.\n")
         print("🛡️ 가드레일: 입력/도구/출력 (3계층 보안)\n")
+        print("💡 처음 한 번은 학번과 함께 질문하세요.")
+        print("   예) HANA-007 / 실무반 2개월 친구 할인이면?\n")
         print(f"{'='*80}\n")
 
-        messages = [HumanMessage(content=system_msg)]
+        messages = [SystemMessage(content=system_msg)]
         tool_guard.reset_session()
 
         while True:
@@ -147,8 +154,16 @@ async def main():
             messages.append(HumanMessage(content=processed_input))
 
             try:
+                answer = None  # [4-4] answer 초기화
+                last_tool_used = ""
+                last_tool_result = ""
+                start_time = time.time()
+
                 for iteration in range(3):
+                    # 진행 표시: 모델 호출 시
+                    print("⏳ 생각 중...", end="", flush=True)
                     response = await llm_with_tools.ainvoke(messages)
+                    print("\r" + " " * 20 + "\r", end="", flush=True)  # 지우기
                     messages.append(response)
 
                     if not hasattr(response, "tool_calls") or not response.tool_calls:
@@ -162,6 +177,9 @@ async def main():
                         tool_args = tool_call.get("args", {})
                         tool_id = tool_call.get("id", f"call_{iteration}")
 
+                        # 진행 표시: 도구 사용 시
+                        print(f"[반복 {iteration+1}] {tool_name} · {str(tool_args)[:40]}...")
+
                         # [2-1] 도구 가드 검사
                         tool_passed, tool_message = await tool_guard.guard(
                             tool_name,
@@ -170,7 +188,7 @@ async def main():
                         )
 
                         if not tool_passed:
-                            print(f"\n🛡️ 도구 가드: {tool_message}\n")
+                            print(f"🛡️ 도구 가드: {tool_message}")
                             messages.append(ToolMessage(tool_call_id=tool_id, content=tool_message))
                             continue
 
@@ -188,20 +206,34 @@ async def main():
                             else:
                                 result_text = result if isinstance(result, str) else str(result)
 
+                            # 도구 사용 결과 로깅
+                            print(f"   → {result_text[:60]}")
+
+                            # 도구 정보 저장 (출력 가드용)
+                            last_tool_used = tool_name
+                            last_tool_result = result_text
+
                             messages.append(ToolMessage(tool_call_id=tool_id, content=result_text))
 
                         except Exception as e:
                             error_msg = f"도구 실행 오류: {str(e)[:100]}"
+                            print(f"   → {error_msg}")
                             messages.append(ToolMessage(tool_call_id=tool_id, content=error_msg))
 
+                # [4-4] answer 없으면 "확인하지 못했어요"
                 if not answer or answer.startswith("당신:"):
                     answer = "확인하지 못했어요"
 
-                # [3] 출력 가드 검사 (규정 답변에만 적용)
-                # 여기서는 간단하게 처리 (실제로는 도구 결과 추적 필요)
-                answer_safe = answer.encode('utf-8', errors='replace').decode('utf-8')
+                # [3] 출력 가드 검사 (실제 연결)
+                answer_guarded, guard_notes = output_guard.guard(
+                    answer,
+                    tool_used=last_tool_used,
+                    tool_result=last_tool_result
+                )
 
-                print(f"\n봇: {answer_safe}\n")
+                elapsed = time.time() - start_time
+                print(f"\n봇: {answer_guarded}\n")
+                print(f"⏱️ {elapsed:.1f}초 · 도구: {last_tool_used or '없음'}\n")
 
             except UnicodeEncodeError:
                 print(f"\n봇: (응답 인코딩 오류)\n")
