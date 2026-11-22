@@ -230,7 +230,13 @@ class ToolGuard:
                 print(f"   [ToolGuard] ✅ 승인됨")
             return True, ""
         else:
-            message = "❌ 사용자가 거부했습니다"
+            # [4-4] 거절 이유를 도구별로 상세화
+            if tool_name == "reserve_gpu":
+                message = "예약하지 않았어요"
+            elif tool_name == "cancel_gpu":
+                message = "취소하지 않았어요"
+            else:
+                message = "❌ 사용자가 거부했습니다"
             if self.verbose:
                 print(f"   [ToolGuard] 사용자 거부")
             return False, message

@@ -6,6 +6,7 @@ import sys
 import asyncio
 import time
 from pathlib import Path
+from datetime import datetime
 
 # Windows UTF-8 인코딩 설정
 if sys.platform == 'win32':
@@ -110,10 +111,17 @@ async def main():
         tools_list = [tool for _, tool in tool_table.values()]
         llm_with_tools = llm.bind_tools(tools_list)
 
+        # [4-4] 오늘 날짜 (요일 포함)
+        today = datetime.now()
+        weekdays = ["월", "화", "수", "목", "금", "토", "일"]
+        today_str = f"{today.year}년 {today.month}월 {today.day}일 ({weekdays[today.weekday()]}요일)"
+
         # 시스템 메시지 (SystemMessage 사용)
         system_msg = f"""당신은 하나 AI 학원의 Q&A 챗봇입니다.
 
 현재 로그인한 학번: {login_id}
+오늘 날짜: {today_str}
+(모든 날짜 계산은 이 날짜를 기준으로 합니다)
 
 학번이나 인사 정도는 도구 없이 답하세요.
 필요할 때만 MCP 도구를 사용해 정보를 조회하세요.
@@ -149,6 +157,10 @@ async def main():
             if not input_passed:
                 print(f"\n🛡️ 입력 가드: {input_message}\n")
                 continue
+
+            # [4-4] PII 가림 안내 표시
+            if input_message and "개인정보" in input_message:
+                print(f"🛡️ {input_message}")
 
             # [2] 에이전트 실행 (도구 호출 포함)
             messages.append(HumanMessage(content=processed_input))
@@ -188,7 +200,8 @@ async def main():
                         )
 
                         if not tool_passed:
-                            print(f"🛡️ 도구 가드: {tool_message}")
+                            # [4-4] 거절 이유를 그대로 말하기
+                            print(f"   {tool_message}")
                             messages.append(ToolMessage(tool_call_id=tool_id, content=tool_message))
                             continue
 

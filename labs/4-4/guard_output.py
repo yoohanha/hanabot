@@ -153,6 +153,15 @@ class OutputGuard:
 
     def _check_unverified_numbers(self, text: str, tool_used: str, tool_result: str) -> Tuple[str, bool]:
         """미검증 숫자 확인"""
+        # [4-4] 도구 결과에 있는 숫자는 무시 (도구가 반환한 숫자는 신뢰 가능)
+        # calc_fee는 금액 계산 결과이므로 모든 금액을 신뢰
+        if tool_used == "calc_fee":
+            return text, False  # 금액 계산 결과는 경고 없음
+
+        # 쉼표 제거 후 숫자 추출 (300,000 → 300000)
+        tool_text_clean = tool_result.replace(",", "") if tool_result else ""
+        tool_numbers = set(re.findall(r'\d+', tool_text_clean))
+
         # 금액(원), 횟수, 비율(%) 추출
         numbers = re.findall(r'(\d+)(?:원|%|시간|회|명)?', text)
         if not numbers:
@@ -166,6 +175,9 @@ class OutputGuard:
         unverified = False
         for num_str in numbers:
             num = int(num_str)
+            # [4-4] 도구 결과에 있는 숫자는 무시
+            if str(num) in tool_numbers:
+                continue
             # 규정에 없는 숫자면 경고 추가
             if num not in all_verified_numbers and num < 10:  # 1자리 수 중심
                 # "규정에서 확인되지 않은 내용" 추가

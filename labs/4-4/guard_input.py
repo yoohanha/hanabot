@@ -138,7 +138,7 @@ class InputGuard:
         # 2. 지시 무시 공격 검사
         injection_found = self._check_prompt_injection(user_input)
         if injection_found:
-            message = f"❌ 건강한 질문을 부탁드려요. (차단 이유: {injection_found})"
+            message = f"❌ 지시를 무시하라는 요청은 처리할 수 없어요."
             if self.verbose:
                 print(f"   [Guard] 프롬프트 인젝션 차단: {injection_found}")
             self.violations.append(("prompt_injection", injection_found))
