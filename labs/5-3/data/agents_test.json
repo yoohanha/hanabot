@@ -1,0 +1,44 @@
+[
+  {
+    "agent": "Rules Agent",
+    "question": "무료 주차는 몇시간이야?",
+    "tool": "search_rules",
+    "answer": "검색 결과: 답변: free-parking-duration은 2시간입니다.\n\n근거: [# 주차 > ## 주차...",
+    "time": "39.54s"
+  },
+  {
+    "agent": "Rules Agent",
+    "question": "실무반 2개월에 친구 할인 받으면 얼마?",
+    "tool": "none",
+    "answer": "담당 아님",
+    "time": "12.73s"
+  },
+  {
+    "agent": "Fee Agent",
+    "question": "기초반 3개월 친구 할인 수강료는?",
+    "tool": "calculate_course_fee",
+    "answer": "계산 결과: 원래 900,000원 - 친구와 함께 10% 할인 90,000원 = 낼 금액 810,000원",
+    "time": "17.89s"
+  },
+  {
+    "agent": "Fee Agent",
+    "question": "무료 주차 정책을 알려줘",
+    "tool": "none",
+    "answer": "담당 아님",
+    "time": "2.28s"
+  },
+  {
+    "agent": "Booking Agent",
+    "question": "오늘 몇 월 며칠이야?",
+    "tool": "get_today",
+    "answer": "오늘: 2026년 11월 26일 (목)",
+    "time": "8.36s"
+  },
+  {
+    "agent": "Booking Agent",
+    "question": "규정에서 주차 시간을 찾아줄래?",
+    "tool": "none",
+    "answer": "담당 아님",
+    "time": "2.10s"
+  }
+]
