@@ -55,22 +55,8 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 # LLM 초기화
 # ============================================================================
 
-def create_reflector_llm():
-    """검토자 LLM"""
-    system_message = """당신은 하나봇 답변 검토자입니다.
-사용자의 질문에 대한 답변이 정확하고 완전한지 검토합니다.
-
-검토 기준:
-1. 답의 숫자가 도구 실행 결과에 있는가
-2. 날짜가 오늘 기준으로 정확한가
-3. 질문의 모든 요청을 답했는가
-
-응답 형식:
-{
-  "pass": true/false,
-  "issues": ["이유1", "이유2", ...]
-}"""
-
+def create_llm():
+    """LLM 생성"""
     llm = ChatOllama(
         model=CHAT_MODEL,
         base_url=OLLAMA_BASE_URL,
@@ -79,12 +65,133 @@ def create_reflector_llm():
         num_predict=512,
         timeout=120
     )
-
-    return llm, system_message
+    return llm
 
 
 # ============================================================================
-# 노드: Reflector
+# [5-2] 노드: Planner (계획 생성)
+# ============================================================================
+
+def planner_node(state: ReflectionState) -> dict:
+    """
+    [5-2] 질문으로부터 계획 생성
+    """
+    question = state["question"]
+    llm = create_llm()
+
+    prompt = f"""질문: {question}
+
+이 질문을 해결하기 위한 단계를 JSON 배열로 만드세요.
+각 단계는 {{step: N, do: "설명", tool: "도구이름"}} 형식입니다.
+사용할 수 있는 도구: get_today, search_rules, calculate_course_fee, reserve_gpu_pc
+
+예: [{{"step": 1, "do": "규정 검색", "tool": "search_rules"}}, {{"step": 2, "do": "가격 계산", "tool": "calculate_course_fee"}}]
+
+JSON 배열만 반환하세요:"""
+
+    try:
+        response = llm.invoke([HumanMessage(content=prompt)])
+        response_text = response.content.strip()
+
+        # JSON 파싱
+        try:
+            plan = json.loads(response_text)
+            if not isinstance(plan, list):
+                plan = []
+        except:
+            plan = []
+
+    except Exception as e:
+        plan = []
+
+    return {"plan": plan}
+
+
+# ============================================================================
+# [5-2] 노드: Executor (계획 실행)
+# ============================================================================
+
+def executor_node(state: ReflectionState) -> dict:
+    """
+    [5-2] 계획에 따라 도구 실행
+    """
+    question = state["question"]
+    plan = state.get("plan", [])
+    results = []
+
+    print(f"\n[단계별 실행]")
+
+    for step_item in plan:
+        try:
+            step_num = step_item.get("step", 0)
+            do_desc = step_item.get("do", "")
+            tool_name = step_item.get("tool", "")
+
+            print(f"  STEP {step_num}: {do_desc} (도구: {tool_name})")
+
+            # 도구 실행
+            result = ""
+            if tool_name == "get_today":
+                result = get_today()
+            elif tool_name == "search_rules":
+                result = search_rules(question)
+            elif tool_name == "calculate_course_fee":
+                result = calculate_course_fee(question)
+            elif tool_name == "reserve_gpu_pc":
+                result = reserve_gpu_pc(question)
+
+            # 결과 저장 (앞 50자)
+            result_preview = str(result)[:50] if result else "(빈 결과)"
+            print(f"    결과: {result_preview}...")
+            results.append({"tool": tool_name, "result": str(result)})
+
+        except Exception as e:
+            print(f"    오류: {str(e)}")
+            results.append({"tool": tool_name, "result": f"오류: {str(e)}"})
+
+    return {"results": results}
+
+
+# ============================================================================
+# [5-2] 노드: Writer (답변 작성)
+# ============================================================================
+
+def writer_node(state: ReflectionState) -> dict:
+    """
+    [5-2] 도구 결과로부터 최종 답변 작성
+    """
+    question = state["question"]
+    results = state.get("results", [])
+    llm = create_llm()
+
+    # 도구 결과 텍스트
+    results_text = "\n".join([
+        f"- {r['tool']}: {r.get('result', '')}"
+        for r in results
+    ])
+
+    prompt = f"""사용자 질문: {question}
+
+도구 결과:
+{results_text}
+
+이 도구 결과를 바탕으로 사용자 질문에 대한 답변을 작성하세요.
+한국어로 명확하고 직접적으로 답변하세요."""
+
+    try:
+        response = llm.invoke([HumanMessage(content=prompt)])
+        final_answer = response.content.strip()
+    except Exception as e:
+        final_answer = f"답변 생성 오류: {str(e)}"
+
+    print(f"\n[최종 답변]")
+    print(f"  {final_answer[:80]}...")
+
+    return {"final_answer": final_answer}
+
+
+# ============================================================================
+# [5-2] 노드: Reflector (검토)
 # ============================================================================
 
 def reflector_node(state: ReflectionState) -> dict:
@@ -94,10 +201,9 @@ def reflector_node(state: ReflectionState) -> dict:
     question = state.get("question", "")
     final_answer = state.get("final_answer", "")
     results = state.get("results", [])
+    llm = create_llm()
 
-    llm, system_msg = create_reflector_llm()
-
-    # [5-2] 도구 결과 텍스트
+    # 도구 결과 텍스트
     results_text = "\n".join([
         f"- {r['tool']}: {r.get('result', '')[:100]}"
         for r in results
@@ -125,8 +231,7 @@ def reflector_node(state: ReflectionState) -> dict:
         try:
             review = json.loads(response_text)
         except:
-            # JSON 파싱 실패 시 기본값
-            review = {"pass": False, "issues": ["검토 오류"]}
+            review = {"pass": False, "issues": ["검토 JSON 파싱 오류"]}
 
         pass_flag = review.get("pass", False)
         issues = review.get("issues", [])
@@ -135,8 +240,11 @@ def reflector_node(state: ReflectionState) -> dict:
         pass_flag = False
         issues = [f"검토 오류: {str(e)}"]
 
-    # [5-2] 검토 결과
+    # 검토 결과
     feedback = " | ".join(issues) if issues else "모든 기준 통과"
+
+    print(f"\n[검토 결과]")
+    print(f"  {'PASS' if pass_flag else 'FAIL'}: {feedback}")
 
     return {
         "reflection_pass": pass_flag,
@@ -150,9 +258,8 @@ def reflector_node(state: ReflectionState) -> dict:
 
 def should_finalize(state: ReflectionState) -> str:
     """
-    검토 통과 여부로 END 또는 planner로
+    [5-2] 검토 통과 여부로 END 또는 planner로
     """
-    # [5-2] 최대 2번까지만 재계획
     retry_count = state.get("retry_count", 0)
 
     if state.get("reflection_pass", False) or retry_count >= 2:
@@ -162,54 +269,58 @@ def should_finalize(state: ReflectionState) -> str:
 
 
 # ============================================================================
-# 간단한 Planner (재계획용)
+# [5-2] 재계획 노드들
 # ============================================================================
 
-def simple_planner(state: ReflectionState) -> dict:
-    """
-    [5-2] 간단한 재계획 (피드백 반영)
-    """
-    question = state["question"]
-    feedback = state.get("reflection_feedback", "")
+def replanner_node(state: ReflectionState) -> dict:
+    """[5-2] 재계획 (피드백 반영)"""
     retry_count = state.get("retry_count", 0)
+    feedback = state.get("reflection_feedback", "")
 
-    print(f"\n  🔄 재계획 (재시도 {retry_count + 1}회)")
-    print(f"     이유: {feedback}")
+    print(f"\n[재계획 시도 {retry_count + 1}회]")
+    print(f"  이유: {feedback}\n")
 
-    # 간단히 같은 계획 사용 (실제로는 LLM으로 개선된 계획 생성)
+    # 피드백을 반영해 재계획
+    llm = create_llm()
+    question = state["question"]
+
+    prompt = f"""질문: {question}
+
+이전 검토 피드백: {feedback}
+
+피드백을 반영해 더 나은 단계를 JSON 배열로 만드세요.
+사용할 수 있는 도구: get_today, search_rules, calculate_course_fee, reserve_gpu_pc
+
+예: [{{"step": 1, "do": "규정 검색", "tool": "search_rules"}}]
+
+JSON 배열만 반환하세요:"""
+
+    try:
+        response = llm.invoke([HumanMessage(content=prompt)])
+        response_text = response.content.strip()
+        try:
+            plan = json.loads(response_text)
+            if not isinstance(plan, list):
+                plan = []
+        except:
+            plan = []
+    except:
+        plan = []
+
     return {
+        "plan": plan,
         "retry_count": retry_count + 1
     }
 
 
-# ============================================================================
-# 간단한 Executor (재실행용)
-# ============================================================================
-
-def simple_executor(state: ReflectionState) -> dict:
-    """
-    [5-2] 간단한 재실행
-    """
-    plan = state.get("plan", [])
-    results = state.get("results", [])
-
-    # 같은 도구 결과 사용 (실제로는 다시 실행)
-    return {"results": results}
+def re_executor_node(state: ReflectionState) -> dict:
+    """[5-2] 재실행"""
+    return executor_node(state)
 
 
-# ============================================================================
-# 간단한 Writer (재작성용)
-# ============================================================================
-
-def simple_writer(state: ReflectionState) -> dict:
-    """
-    [5-2] 간단한 재작성
-    """
-    question = state["question"]
-    results = state.get("results", [])
-
-    # 같은 답변 반환 (실제로는 LLM으로 재작성)
-    return {"final_answer": state.get("final_answer", "")}
+def re_writer_node(state: ReflectionState) -> dict:
+    """[5-2] 재작성"""
+    return writer_node(state)
 
 
 # ============================================================================
@@ -221,13 +332,19 @@ def create_reflection_pipeline():
     graph = StateGraph(ReflectionState)
 
     # 노드 추가
+    graph.add_node("planner", planner_node)
+    graph.add_node("executor", executor_node)
+    graph.add_node("writer", writer_node)
     graph.add_node("reflector", reflector_node)
-    graph.add_node("replanner", simple_planner)
-    graph.add_node("re_executor", simple_executor)
-    graph.add_node("re_writer", simple_writer)
+    graph.add_node("replanner", replanner_node)
+    graph.add_node("re_executor", re_executor_node)
+    graph.add_node("re_writer", re_writer_node)
 
     # [5-2] 엣지 추가
-    graph.add_edge(START, "reflector")
+    graph.add_edge(START, "planner")
+    graph.add_edge("planner", "executor")
+    graph.add_edge("executor", "writer")
+    graph.add_edge("writer", "reflector")
     graph.add_conditional_edges(
         "reflector",
         should_finalize,
@@ -244,126 +361,11 @@ def create_reflection_pipeline():
 
 
 # ============================================================================
-# 테스트
+# 대화형 모드
 # ============================================================================
 
-def test_reflection_pipeline():
-    """검토 파이프라인 테스트"""
-    print(f"\n🤖 Ollama 채팅 모델: {CHAT_MODEL}")
-    print(f"📡 Ollama 주소: {OLLAMA_BASE_URL}\n")
-
-    print(f"{'='*120}")
-    print("[5-2] LangGraph 플랜-실행-쓰기-검토 파이프라인")
-    print(f"{'='*120}\n")
-
-    # 테스트 케이스: 정상 + 오류
-    test_cases = [
-        {
-            "question": "지각 3번이면 어떻게 되고, 기초반 1개월 수강료는 얼마야?",
-            "first_answer": "지각 3회는 결석 1회로 처리되며, 기초반 1개월 수강료는 30만원입니다.",
-            "results": [
-                {"tool": "search_rules", "result": "지각 3회는 결석 1회로 처리됩니다."},
-                {"tool": "calc_fee", "result": "기초반 1개월: 300,000원"}
-            ]
-        },
-        {
-            "question": "실무반 2개월 친구 할인 금액이랑 환불 규정 알려줘",
-            "first_answer": "실무반 2개월 친구 할인은 50만원입니다. 환불 규정은 10% 수수료입니다.",
-            "results": [
-                {"tool": "calc_fee", "result": "실무반 2개월 친구 할인: 450,000원"},
-                {"tool": "search_rules", "result": "환불 수수료: 10%, 1주일 이내 환불"}
-            ]
-        },
-        {
-            "question": "내일 오후 2시 GPU PC 1번 2시간 예약해줘",
-            "first_answer": "내일 오후 2시 GPU PC 1번 2시간 예약이 완료되었습니다.",
-            "results": [
-                {"tool": "get_today", "result": "오늘: 2026년 11월 26일 (목)"},
-                {"tool": "reserve_gpu", "result": "⏳ GPU PC 예약 (실제 저장은 5교시 승인 후)"}
-            ]
-        }
-    ]
-
-    all_results = []
-
-    for idx, test_case in enumerate(test_cases, 1):
-        question = test_case["question"]
-        first_answer = test_case["first_answer"]
-        results = test_case["results"]
-
-        print(f"[질문 {idx}] {question}\n")
-
-        # 초기 상태
-        initial_state = {
-            "question": question,
-            "plan": [],
-            "current_step_idx": 0,
-            "results": results,
-            "final_answer": first_answer,
-            "reflection_pass": False,
-            "reflection_feedback": "",
-            "retry_count": 0
-        }
-
-        # 파이프라인 생성 및 실행
-        pipeline = create_reflection_pipeline()
-
-        try:
-            print(f"{'─'*120}")
-            print("📋 1차 답변")
-            print(f"{first_answer}\n")
-
-            result = pipeline.invoke(initial_state)
-
-            # 최종 결과
-            feedback = result.get("reflection_feedback", "통과")
-            pass_flag = result.get("reflection_pass", False)
-            final_answer = result.get("final_answer", first_answer)
-            retry = result.get("retry_count", 0)
-
-            print(f"{'─'*120}")
-            print(f"🔍 검토 결과: {'✅ 통과' if pass_flag else '❌ 재검토'}")
-            print(f"   이유: {feedback}")
-            if retry > 0:
-                print(f"   재시도: {retry}회\n")
-
-            all_results.append({
-                "question": question,
-                "first_answer": first_answer,
-                "review_result": "통과" if pass_flag else "재검토",
-                "review_reason": feedback,
-                "final_answer": final_answer,
-                "retry_count": retry
-            })
-
-        except Exception as e:
-            print(f"❌ 실행 오류: {str(e)}\n")
-
-    # 결과 표
-    print(f"\n{'='*120}")
-    print("📊 검토 결과 (질문 · 1차 답 · 검토 결과 · 이유 · 최종 답)")
-    print(f"{'='*120}\n")
-
-    for idx, r in enumerate(all_results, 1):
-        print(f"[{idx}] 질문: {r['question']}")
-        print(f"    1차 답: {r['first_answer']}")
-        print(f"    검토: {r['review_result']}")
-        print(f"    이유: {r['review_reason']}")
-        print(f"    최종: {r['final_answer']}")
-        if r['retry_count'] > 0:
-            print(f"    재시도: {r['retry_count']}회")
-        print()
-
-    # 결과 저장
-    result_file = DATA_DIR / "reflect_test.json"
-    with open(result_file, 'w', encoding='utf-8') as f:
-        json.dump(all_results, f, ensure_ascii=False, indent=2)
-
-    print(f"✅ 테스트 결과 저장: {result_file}")
-
-
 def interactive_mode():
-    """대화형 모드"""
+    """[5-2] 대화형 모드"""
     print(f"\n[AI] Ollama 채팅 모델: {CHAT_MODEL}")
     print(f"[NET] Ollama 주소: {OLLAMA_BASE_URL}\n")
 
@@ -396,33 +398,104 @@ def interactive_mode():
 
         print()
         print(f"{'─'*120}")
-        print(f"[Q] 질문: {question}\n")
 
-        # 간단한 계획 · 실행 · 검토 시뮬레이션
-        print("[STEP 1] 계획 생성 중...")
-        import time
-        time.sleep(0.3)
-        print("[OK] 계획 완료\n")
+        # 초기 상태
+        initial_state = {
+            "question": question,
+            "plan": [],
+            "current_step_idx": 0,
+            "results": [],
+            "final_answer": "",
+            "reflection_pass": False,
+            "reflection_feedback": "",
+            "retry_count": 0
+        }
 
-        print("[STEP 2] 도구 실행 중...")
-        time.sleep(0.3)
-        print("[OK] 도구 실행 완료\n")
+        # 파이프라인 실행
+        pipeline = create_reflection_pipeline()
 
-        print("[STEP 3] 답변 작성 중...")
-        time.sleep(0.3)
-        print("[OK] 답변 완료: 질문에 대한 답변을 생성했습니다.\n")
+        try:
+            result = pipeline.invoke(initial_state)
 
-        print("[STEP 4] 검토 중...")
-        time.sleep(0.3)
-        print("[OK] 검토 완료: 모든 기준을 만족합니다.\n")
+            # 최종 결과 표시
+            print(f"\n{'─'*120}\n")
+            print(f"[결과] 검토: {'PASS' if result.get('reflection_pass') else 'FAIL'}")
+            print(f"[재시도] {result.get('retry_count', 0)}회\n")
+
+        except Exception as e:
+            print(f"[ERROR] 실행 오류: {str(e)}\n")
 
         print(f"{'─'*120}\n")
+
+
+# ============================================================================
+# 테스트 모드
+# ============================================================================
+
+def test_reflection_pipeline():
+    """검토 파이프라인 테스트"""
+    print(f"\n🤖 Ollama 채팅 모델: {CHAT_MODEL}")
+    print(f"📡 Ollama 주소: {OLLAMA_BASE_URL}\n")
+
+    print(f"{'='*120}")
+    print("[5-2] LangGraph 플랜-실행-쓰기-검토 파이프라인")
+    print(f"{'='*120}\n")
+
+    # 테스트 케이스: 정상 + 오류
+    test_cases = [
+        {
+            "question": "지각 3번이면 어떻게 되고, 기초반 1개월 수강료는 얼마야?",
+            "results": [
+                {"tool": "search_rules", "result": "지각 3회는 결석 1회로 처리됩니다."},
+                {"tool": "calculate_course_fee", "result": "기초반 1개월: 300,000원"}
+            ]
+        },
+        {
+            "question": "실무반 2개월 친구 할인 수강료 알려줘",
+            "results": [
+                {"tool": "calculate_course_fee", "result": "실무반 2개월 친구 할인: 900,000원"},
+            ]
+        },
+        {
+            "question": "내일 오후 2시 GPU PC 1번 2시간 예약해줘",
+            "results": [
+                {"tool": "get_today", "result": "오늘: 2026년 11월 26일 (목)"},
+                {"tool": "reserve_gpu_pc", "result": "예약이 완료되었습니다."}
+            ]
+        }
+    ]
+
+    for idx, test_case in enumerate(test_cases, 1):
+        question = test_case["question"]
+
+        print(f"[질문 {idx}] {question}\n")
+
+        # 초기 상태
+        initial_state = {
+            "question": question,
+            "plan": [],
+            "current_step_idx": 0,
+            "results": [],
+            "final_answer": "",
+            "reflection_pass": False,
+            "reflection_feedback": "",
+            "retry_count": 0
+        }
+
+        # 파이프라인 생성 및 실행
+        pipeline = create_reflection_pipeline()
+
+        try:
+            result = pipeline.invoke(initial_state)
+            print()
+
+        except Exception as e:
+            print(f"실행 오류: {str(e)}\n")
 
 
 def main():
     """메인 함수"""
     # 커맨드라인 인자 확인
-    import sys
     if len(sys.argv) > 1 and sys.argv[1] == '--test':
         # 테스트 모드
         test_reflection_pipeline()
