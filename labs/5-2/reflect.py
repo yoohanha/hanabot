@@ -68,6 +68,34 @@ def create_llm():
     return llm
 
 
+# [5-2] JSON 추출 함수 (JSON 형식 파싱 안정화)
+def extract_json(text: str):
+    """
+    텍스트에서 JSON 객체 또는 배열 추출
+    - { ... } 형태의 JSON 객체
+    - [ ... ] 형태의 JSON 배열
+    """
+    text = text.strip()
+
+    # [ ] 배열 추출
+    array_match = re.search(r'\[\s*\{.*?\}\s*\]', text, re.DOTALL)
+    if array_match:
+        try:
+            return json.loads(array_match.group(0))
+        except:
+            pass
+
+    # { } 객체 추출
+    obj_match = re.search(r'\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}', text, re.DOTALL)
+    if obj_match:
+        try:
+            return json.loads(obj_match.group(0))
+        except:
+            pass
+
+    return None
+
+
 # ============================================================================
 # [5-2] 노드: Planner (계획 생성)
 # ============================================================================
@@ -239,7 +267,16 @@ def reflector_node(state: ReflectionState) -> dict:
     question = state.get("question", "")
     final_answer = state.get("final_answer", "")
     results = state.get("results", [])
-    llm = create_llm()  # [5-2] 오타 수정: create_llama() → create_llm()
+    # [5-2] ChatOllama에 format="json" 추가
+    llm = ChatOllama(
+        model=CHAT_MODEL,
+        base_url=OLLAMA_BASE_URL,
+        temperature=0,
+        num_ctx=8192,
+        num_predict=512,
+        timeout=120,
+        format="json"
+    )
 
     # 1. 도구 결과 검증
     if not results:
@@ -260,7 +297,7 @@ def reflector_node(state: ReflectionState) -> dict:
             "reflection_feedback": "모든 도구 결과가 오류입니다"
         }
 
-    # 3. LLM 검토
+    # [5-2] 3. LLM 검토 또는 규칙 기반 판정
     results_text = "\n".join([
         f"- STEP {r['step']} ({r['tool']}): {r.get('result', '')[:100]}"
         for r in results
@@ -279,22 +316,33 @@ def reflector_node(state: ReflectionState) -> dict:
 
 응답은 JSON: {{"pass": true/false, "issues": ["이유1", ...]}}"""
 
+    pass_flag = False
+    issues = []
+
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
         response_text = response.content.strip()
 
-        # JSON 파싱
-        try:
-            review = json.loads(response_text)
-        except:
-            review = {"pass": False, "issues": ["검토 JSON 파싱 오류"]}
-
-        pass_flag = review.get("pass", False)
-        issues = review.get("issues", [])
+        # [5-2] JSON 추출 함수 사용
+        review = extract_json(response_text)
+        if review and isinstance(review, dict):
+            pass_flag = review.get("pass", False)
+            issues = review.get("issues", [])
+        else:
+            # [5-2] JSON 파싱 실패 시 규칙 기반 판정
+            pass_flag = rule_based_check(question, final_answer, results)
+            if pass_flag:
+                issues = []
+            else:
+                issues = ["규칙 기반 검토: 답의 숫자/시간 미확인"]
 
     except Exception as e:
-        pass_flag = False
-        issues = [f"검토 오류: {str(e)}"]
+        # [5-2] 검토 오류 시 규칙 기반 판정
+        pass_flag = rule_based_check(question, final_answer, results)
+        if pass_flag:
+            issues = []
+        else:
+            issues = [f"검토 오류: 규칙 판정 실패"]
 
     # 검토 결과
     feedback = " | ".join(issues) if issues else "모든 기준 통과"
@@ -306,6 +354,41 @@ def reflector_node(state: ReflectionState) -> dict:
         "reflection_pass": pass_flag,
         "reflection_feedback": feedback
     }
+
+
+# [5-2] 규칙 기반 검토 함수
+def rule_based_check(question: str, final_answer: str, results: list) -> bool:
+    """
+    규칙 기반 검토:
+    - 도구 결과가 있고
+    - 답의 숫자/시간이 도구 결과에 있으면 PASS
+    """
+    if not results:
+        return False
+
+    # 도구 결과 합치기
+    results_text = " ".join([str(r.get("result", "")) for r in results])
+
+    # 답에서 숫자와 시간 추출
+    numbers = re.findall(r'\d+', final_answer)
+    times = re.findall(r'(\d+)시간', final_answer)
+    money = re.findall(r'(\d+)만?\s*원', final_answer)
+
+    # 숫자/시간이 도구 결과에 있는지 확인
+    if numbers or times or money:
+        for num in numbers:
+            if num in results_text:
+                return True
+        for t in times:
+            if t + "시간" in results_text or t in results_text:
+                return True
+        for m in money:
+            if m in results_text:
+                return True
+        return False
+    else:
+        # 숫자/시간이 없으면 도구 결과가 있으면 PASS
+        return bool(results_text.strip())
 
 
 def create_llama():
@@ -337,12 +420,23 @@ def replanner_node(state: ReflectionState) -> dict:
     """[5-2] 재계획 (피드백 반영)"""
     retry_count = state.get("retry_count", 0)
     feedback = state.get("reflection_feedback", "")
+    # [5-2] 이전 계획 저장
+    prev_plan = state.get("plan", [])
 
     print(f"\n[재계획 시도 {retry_count + 1}회]")
     print(f"  이유: {feedback}\n")
 
     # [5-2] 피드백을 반영해 재계획
-    llm = create_llm()
+    # [5-2] ChatOllama에 format="json" 추가
+    llm = ChatOllama(
+        model=CHAT_MODEL,
+        base_url=OLLAMA_BASE_URL,
+        temperature=0,
+        num_ctx=8192,
+        num_predict=512,
+        timeout=120,
+        format="json"
+    )
     question = state["question"]
 
     prompt = f"""질문: {question}
@@ -373,22 +467,19 @@ def replanner_node(state: ReflectionState) -> dict:
         response = llm.invoke([HumanMessage(content=prompt)])
         response_text = response.content.strip()
 
-        # [5-2] JSON 추출
-        json_match = re.search(r'\[\s*\{.*?\}\s*\]', response_text, re.DOTALL)
-        if json_match:
-            json_text = json_match.group(0)
-            plan = json.loads(json_text)
-            if isinstance(plan, list) and plan:
-                return {"plan": plan, "retry_count": retry_count + 1}
+        # [5-2] JSON 추출 함수 사용
+        plan = extract_json(response_text)
+        if isinstance(plan, list) and plan:
+            return {"plan": plan, "retry_count": retry_count + 1}
 
-        # [5-2] 재계획 실패
-        print(f"[재계획 실패] JSON 파싱 실패\n")
-        return {"plan": [], "retry_count": retry_count + 1}
+        # [5-2] 재계획 실패 시 이전 계획 재사용
+        print(f"[재계획 실패] JSON 파싱 실패 → 이전 계획 재사용\n")
+        return {"plan": prev_plan, "retry_count": retry_count + 1}
 
     except Exception as e:
-        # [5-2] 재계획 오류
-        print(f"[재계획 실패] {str(e)}\n")
-        return {"plan": [], "retry_count": retry_count + 1}
+        # [5-2] 재계획 오류 시 이전 계획 재사용
+        print(f"[재계획 실패] {str(e)} → 이전 계획 재사용\n")
+        return {"plan": prev_plan, "retry_count": retry_count + 1}
 
 
 def re_executor_node(state: ReflectionState) -> dict:
