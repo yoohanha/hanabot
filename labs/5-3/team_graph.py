@@ -6,6 +6,7 @@ import os
 import sys
 import time
 import json
+import re
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Literal
@@ -41,8 +42,10 @@ class TeamState(TypedDict):
     """팀 협업 상태"""
     question: str                                      # 원래 질문
     messages: Annotated[list, add_messages]          # 메시지 히스토리
+    # [5-3] 남은 요청 목록 추가
+    remaining_requests: list                          # 남은 요청 (금액/환불/예약/규정 등)
     next_worker: str                                  # 다음 담당 (rules/fee/booking/FINISH)
-    worker_responses: list                            # 담당 응답 모음
+    worker_responses: list                            # 담당 응답 모음 (도구 결과만)
     call_count: int                                   # 담당 호출 횟수
     final_answer: str                                 # 최종 답변
 
@@ -63,38 +66,28 @@ class RulesWorker:
     """규정 담당"""
     def __init__(self):
         self.name = "rules"
-        self.llm = ChatOllama(
-            model=CHAT_MODEL,
-            base_url=OLLAMA_BASE_URL,
-            temperature=0,
-            num_ctx=8192,
-            num_predict=512,
-            timeout=120
-        )
 
-    def execute(self, task: str) -> str:
-        """[5-3] 규정 검색"""
+    def execute(self, task: str) -> Dict[str, Any]:
+        """[5-3] 규정 검색 (결과만 반환)"""
         try:
             result = search_rules.invoke({"question": task})
-            return f"[규정] {str(result)[:300]}"
+            result_text = str(result)
+
+            # [5-3] 결과에 없는 내용은 "규정에 없음" 반환
+            if "없습니다" in result_text or "찾을 수 없습니다" in result_text or not result_text.strip():
+                return {"tool": "search_rules", "result": "규정에 없음", "raw": result_text}
+
+            return {"tool": "search_rules", "result": result_text[:200], "raw": result_text}
         except Exception as e:
-            return f"[규정 오류] {str(e)}"
+            return {"tool": "search_rules", "result": f"오류: {str(e)}", "raw": ""}
 
 
 class FeeWorker:
     """수강료 담당"""
     def __init__(self):
         self.name = "fee"
-        self.llm = ChatOllama(
-            model=CHAT_MODEL,
-            base_url=OLLAMA_BASE_URL,
-            temperature=0,
-            num_ctx=8192,
-            num_predict=512,
-            timeout=120
-        )
 
-    def execute(self, task: str) -> str:
+    def execute(self, task: str) -> Dict[str, Any]:
         """[5-3] 수강료 계산"""
         try:
             q_lower = task.lower()
@@ -107,32 +100,22 @@ class FeeWorker:
                 "months": months,
                 "discount_type": discount_type
             })
-            return f"[수강료] {str(result)[:300]}"
+
+            result_text = str(result)
+            return {"tool": "calculate_course_fee", "result": result_text[:200], "raw": result_text}
         except Exception as e:
-            return f"[수강료 오류] {str(e)}"
+            return {"tool": "calculate_course_fee", "result": f"오류: {str(e)}", "raw": ""}
 
 
 class BookingWorker:
     """예약 담당 (dry-run)"""
     def __init__(self):
         self.name = "booking"
-        self.llm = ChatOllama(
-            model=CHAT_MODEL,
-            base_url=OLLAMA_BASE_URL,
-            temperature=0,
-            num_ctx=8192,
-            num_predict=512,
-            timeout=120
-        )
         self.guard = ToolGuard(login_student_id="HANA-001", verbose=False)
 
-    def execute(self, task: str) -> str:
+    def execute(self, task: str) -> Dict[str, Any]:
         """[5-3] 예약 (dry-run)"""
         try:
-            # 오늘 날짜 확인
-            today_str = get_today.invoke({})
-
-            # 예약 정보 파싱 (간단한 패턴)
             q_lower = task.lower()
 
             if "내일" in q_lower:
@@ -141,15 +124,14 @@ class BookingWorker:
             else:
                 date_str = datetime.now().strftime("%Y-%m-%d")
 
-            # 시간, 지속시간, PC 번호 추출
             start_time = "14:00" if "오후 2시" in q_lower else "09:00"
             duration = 2 if "2시간" in q_lower else 1 if "1시간" in q_lower else 2
             pc_number = 1 if "1번" in q_lower else 2 if "2번" in q_lower else 1
 
-            # dry-run 메시지
-            return f"[예약 DRY-RUN] 날짜: {date_str}, 시간: {start_time}, 지속: {duration}시간, PC: {pc_number}번 (실제 저장은 5교시 승인 뒤)"
+            result_text = f"날짜: {date_str}, 시간: {start_time}, 지속: {duration}시간, PC: {pc_number}번 (DRY-RUN, 실제 저장은 5교시 승인 뒤)"
+            return {"tool": "reserve_gpu_pc", "result": result_text, "raw": result_text}
         except Exception as e:
-            return f"[예약 오류] {str(e)}"
+            return {"tool": "reserve_gpu_pc", "result": f"오류: {str(e)}", "raw": ""}
 
 
 # ============================================================================
@@ -161,51 +143,64 @@ class Supervisor:
 
     def __init__(self):
         self.name = "supervisor"
-        # [5-3] 오늘 날짜 포함
         today = datetime.now()
         self.today_str = today.strftime("%Y년 %m월 %d일 (%A)")
 
+        # [5-3] format="json" 추가
         self.llm = ChatOllama(
             model=CHAT_MODEL,
             base_url=OLLAMA_BASE_URL,
             temperature=0,
             num_ctx=8192,
             num_predict=512,
-            timeout=120
+            timeout=120,
+            format="json"
         )
 
-    def route(self, question: str, previous_responses: List[str], call_count: int) -> str:
-        """[5-3] 다음 담당 선택"""
+    def route(self, question: str, remaining_requests: List[str], previous_responses: List[Dict]) -> Dict[str, str]:
+        """[5-3] 다음 담당 선택 (JSON 형식 + reason)"""
 
-        responses_text = "\n".join(previous_responses) if previous_responses else "(아직 없음)"
+        # [5-3] 남은 요청 정리
+        requests_text = "\n".join([f"- {r}" for r in remaining_requests]) if remaining_requests else "(완료됨)"
+
+        responses_text = "\n".join([
+            f"- {r.get('tool', '?')}: {r.get('result', '')[:100]}"
+            for r in previous_responses
+        ]) if previous_responses else "(아직 없음)"
 
         prompt = f"""당신은 팀의 지휘자입니다. 오늘은 {self.today_str} 입니다.
 
 원래 질문: {question}
 
-이전 담당 응답:
+남은 요청:
+{requests_text}
+
+담당 응답:
 {responses_text}
 
-남은 작업이 있는지 판단하세요:
-1. 규정 조회 필요? → "rules"
-2. 수강료 계산 필요? → "fee"
-3. 예약/날짜 필요? → "booking"
-4. 모든 작업 완료? → "FINISH"
+다음 담당을 선택하세요. JSON 형식으로:
+{{"next": "rules" | "fee" | "booking" | "FINISH", "reason": "왜 이 담당인지"}}
 
-응답은 "rules", "fee", "booking", 또는 "FINISH" 중 하나만 반환하세요."""
+각 담당 역할:
+- rules: 규정 검색 (주차, 수업시간, 환불 기준 등)
+- fee: 수강료 계산 (가격 · 할인)
+- booking: 예약 처리 (날짜 · 시간 · PC)"""
 
-        response = self.llm.invoke([HumanMessage(content=prompt)])
-        answer = response.content.strip().upper()
+        try:
+            response = self.llm.invoke([HumanMessage(content=prompt)])
+            answer_text = response.content.strip()
 
-        # 가능한 옵션 중 선택
-        if "RULES" in answer:
-            return "rules"
-        elif "FEE" in answer:
-            return "fee"
-        elif "BOOKING" in answer:
-            return "booking"
-        else:
-            return "FINISH"
+            # [5-3] JSON 추출
+            json_match = re.search(r'\{[^{}]*\}', answer_text, re.DOTALL)
+            if json_match:
+                result = json.loads(json_match.group(0))
+                next_worker = result.get("next", "FINISH").upper()
+                reason = result.get("reason", "판단")
+                return {"next": next_worker, "reason": reason}
+
+            return {"next": "FINISH", "reason": "JSON 파싱 실패"}
+        except Exception as e:
+            return {"next": "FINISH", "reason": f"지휘자 오류: {str(e)}"}
 
 
 # ============================================================================
@@ -224,64 +219,94 @@ def supervisor_node(state: TeamState) -> dict:
 
     # [5-3] 최대 호출 횟수 초과 시 종료
     if call_count >= 4:
-        return {"next_worker": "FINISH", "call_count": call_count}
+        return {"next_worker": "FINISH"}
 
-    # 다음 담당 선택
-    next_worker = supervisor.route(
+    # [5-3] 다음 담당 선택 (reason 포함)
+    route_result = supervisor.route(
         state["question"],
-        state.get("worker_responses", []),
-        call_count
+        state.get("remaining_requests", []),
+        state.get("worker_responses", [])
     )
 
-    print(f"\n[지휘자] → {next_worker} ({'답 정리' if next_worker == 'FINISH' else '호출 ' + str(call_count + 1) + '/4'})")
-    if state.get("worker_responses"):
-        print(f"  이유: {state['worker_responses'][-1][:80]}...")
+    next_worker = route_result["next"]
+    reason = route_result["reason"]
 
-    return {"next_worker": next_worker, "call_count": call_count + 1}
+    print(f"\n[지휘자] → {next_worker}")
+    print(f"  이유: {reason}")
+
+    return {
+        "next_worker": next_worker,
+        "call_count": call_count + 1
+    }
 
 
 def rules_node(state: TeamState) -> dict:
     """[5-3] 규정 담당 노드"""
-    print(f"  [담당: Rules] 규정 검색 중...", end=" ", flush=True)
+    print(f"  [담당: Rules] 검색 중...", end=" ", flush=True)
     result = rules_worker.execute(state["question"])
-    print("완료")
+    print(f"완료")
 
     new_responses = state.get("worker_responses", []) + [result]
-    return {"worker_responses": new_responses, "next_worker": "supervisor"}
+    # [5-3] 남은 요청에서 "규정" 제거
+    remaining = [r for r in state.get("remaining_requests", []) if "규정" not in r and "환불" not in r]
+
+    return {
+        "worker_responses": new_responses,
+        "next_worker": "supervisor",
+        "remaining_requests": remaining
+    }
 
 
 def fee_node(state: TeamState) -> dict:
     """[5-3] 수강료 담당 노드"""
-    print(f"  [담당: Fee] 수강료 계산 중...", end=" ", flush=True)
+    print(f"  [담당: Fee] 계산 중...", end=" ", flush=True)
     result = fee_worker.execute(state["question"])
-    print("완료")
+    print(f"완료")
 
     new_responses = state.get("worker_responses", []) + [result]
-    return {"worker_responses": new_responses, "next_worker": "supervisor"}
+    # [5-3] 남은 요청에서 "금액/수강료" 제거
+    remaining = [r for r in state.get("remaining_requests", []) if "금액" not in r and "수강료" not in r]
+
+    return {
+        "worker_responses": new_responses,
+        "next_worker": "supervisor",
+        "remaining_requests": remaining
+    }
 
 
 def booking_node(state: TeamState) -> dict:
     """[5-3] 예약 담당 노드 (dry-run)"""
-    print(f"  [담당: Booking] 예약 처리 중...", end=" ", flush=True)
+    print(f"  [담당: Booking] 처리 중...", end=" ", flush=True)
     result = booking_worker.execute(state["question"])
-    print("완료")
+    print(f"완료")
 
     new_responses = state.get("worker_responses", []) + [result]
-    return {"worker_responses": new_responses, "next_worker": "supervisor"}
+    # [5-3] 남은 요청에서 "예약" 제거
+    remaining = [r for r in state.get("remaining_requests", []) if "예약" not in r]
+
+    return {
+        "worker_responses": new_responses,
+        "next_worker": "supervisor",
+        "remaining_requests": remaining
+    }
 
 
 def finish_node(state: TeamState) -> dict:
-    """[5-3] 최종 답변 작성 노드"""
-    responses_text = "\n".join(state.get("worker_responses", []))
+    """[5-3] 최종 답변 작성 (도구 결과만 사용)"""
+    # [5-3] 도구 결과만으로 답변 작성
+    responses_text = "\n".join([
+        f"- {r.get('tool', '?')}: {r.get('raw', '')}"
+        for r in state.get("worker_responses", [])
+    ])
 
-    prompt = f"""담당자들의 응답을 바탕으로 최종 답변을 작성하세요:
+    prompt = f"""도구들의 실행 결과만으로 답변을 작성하세요.
+질문: {state["question"]}
 
-원래 질문: {state["question"]}
-
-담당자 응답:
+도구 결과:
 {responses_text}
 
-이를 종합한 최종 답변을 명확하고 간결하게 작성하세요."""
+이 결과들을 조합해서 명확한 답변을 작성하세요.
+결과에 없는 내용은 절대 추가하지 마세요."""
 
     llm = ChatOllama(
         model=CHAT_MODEL,
@@ -309,19 +334,14 @@ def route_after_supervisor(state: TeamState) -> Literal["rules", "fee", "booking
     """[5-3] 지휘자 결정 후 라우팅"""
     next_worker = state.get("next_worker", "FINISH")
 
-    if next_worker == "rules":
+    if next_worker == "RULES":
         return "rules"
-    elif next_worker == "fee":
+    elif next_worker == "FEE":
         return "fee"
-    elif next_worker == "booking":
+    elif next_worker == "BOOKING":
         return "booking"
     else:
         return "finish"
-
-
-def route_after_worker(state: TeamState) -> Literal["supervisor"]:
-    """[5-3] 담당 처리 후 지휘자로"""
-    return "supervisor"
 
 
 # ============================================================================
@@ -366,63 +386,78 @@ def create_team_graph():
 
 
 # ============================================================================
-# 테스트
+# 대화형 모드
 # ============================================================================
 
-def run_team_test():
-    """[5-3] 팀 협업 테스트"""
-
-    test_question = "실무반 2개월 친구 할인 금액이랑 환불 규정 알려주고, 내일 오후 2시 GPU PC 1번 2시간 예약도 해줘"
-
+def interactive_mode():
+    """[5-3] 대화형 모드"""
     print(f"\n{'='*120}")
-    print("[5-3] 팀 그래프: 지휘자 + 담당 에이전트")
+    print("[5-3] 멀티 에이전트 팀 · 대화형 모드")
     print(f"{'='*120}\n")
 
-    print(f"[질문] {test_question}\n")
-    print(f"{'─'*120}\n")
+    print("[안내]")
+    print("  1. 학번을 입력하세요")
+    print("  2. 질문을 입력하세요 (예시 표시 안내)")
+    print("  3. 지휘자가 담당을 지정합니다")
+    print("  4. q를 입력하면 종료\n")
 
-    # 초기 상태
-    initial_state = {
-        "question": test_question,
-        "messages": [],
-        "next_worker": "supervisor",
-        "worker_responses": [],
-        "call_count": 0,
-        "final_answer": ""
-    }
+    while True:
+        # 학번 입력
+        student_id = input("[INPUT] 학번 (q 종료): ").strip()
+        if student_id.lower() == 'q':
+            print("\n프로그램을 종료합니다.\n")
+            break
 
-    # 그래프 실행
-    graph = create_team_graph()
+        if not student_id:
+            print("[ERROR] 학번을 입력하세요.\n")
+            continue
 
-    start_time = time.time()
+        # 질문 입력 안내
+        print("\n[입력 예시]")
+        print("  - 무료 주차는 몇시간이야?")
+        print("  - 기초반 1개월은 얼마야?")
+        print("  - 실무반 2개월 친구 할인 금액이랑 환불 규정 알려줘")
 
-    try:
-        result = graph.invoke(initial_state)
+        question = input("\n[INPUT] 질문: ").strip()
+        if not question:
+            print("[ERROR] 질문을 입력하세요.\n")
+            continue
 
-        elapsed_time = time.time() - start_time
+        print(f"\n{'-'*120}\n")
 
-        print(f"{'─'*120}\n")
-        print(f"[실행 시간] {elapsed_time:.2f}초")
-        print(f"[호출 횟수] {result.get('call_count', 0)}/4")
-        print(f"[담당 응답] {len(result.get('worker_responses', []))}개")
+        # [5-3] 초기 상태: 남은 요청 추출
+        remaining_requests = []
+        q_lower = question.lower()
+        if any(x in q_lower for x in ["금액", "얼마", "가격", "수강료", "비용"]):
+            remaining_requests.append("금액 계산")
+        if any(x in q_lower for x in ["환불", "취소", "규정"]):
+            remaining_requests.append("환불 규정")
+        if any(x in q_lower for x in ["예약", "보기", "시간", "gpu", "pc"]):
+            remaining_requests.append("예약/날짜")
+        if any(x in q_lower for x in ["주차", "시간표", "규칙", "규정"]):
+            remaining_requests.append("규정 조회")
 
-        # 결과 저장
-        output_data = {
-            "question": test_question,
-            "call_count": result.get("call_count", 0),
-            "worker_responses": result.get("worker_responses", []),
-            "final_answer": result.get("final_answer", ""),
-            "elapsed_time": elapsed_time
+        initial_state = {
+            "question": question,
+            "messages": [],
+            "remaining_requests": remaining_requests,
+            "next_worker": "supervisor",
+            "worker_responses": [],
+            "call_count": 0,
+            "final_answer": ""
         }
 
-        output_file = DATA_DIR / "team_graph_test.json"
-        with open(output_file, "w", encoding="utf-8") as f:
-            json.dump(output_data, f, ensure_ascii=False, indent=2)
+        # 파이프라인 실행
+        graph = create_team_graph()
 
-        print(f"\n[저장] {output_file}\n")
+        try:
+            result = graph.invoke(initial_state)
 
-    except Exception as e:
-        print(f"[ERROR] {str(e)}\n")
+            print(f"{'-'*120}\n")
+            print(f"[결과] 호출: {result.get('call_count', 0)}/4회\n")
+
+        except Exception as e:
+            print(f"[ERROR] {str(e)}\n")
 
 
 # ============================================================================
@@ -431,7 +466,7 @@ def run_team_test():
 
 def main():
     """메인 함수"""
-    run_team_test()
+    interactive_mode()
 
 
 if __name__ == "__main__":
