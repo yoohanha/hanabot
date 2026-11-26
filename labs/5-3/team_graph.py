@@ -157,7 +157,7 @@ class Supervisor:
             format="json"
         )
 
-    def route(self, question: str, remaining_requests: List[str], previous_responses: List[Dict]) -> Dict[str, str]:
+    def route(self, question: str, remaining_requests: List[str], previous_responses: List[Dict], available_workers: List[str] = None) -> Dict[str, str]:
         """[5-3] 다음 담당 선택 (JSON 형식 + reason)"""
 
         # [5-3] 남은 요청 정리
@@ -167,6 +167,17 @@ class Supervisor:
             f"- {r.get('tool', '?')}: {r.get('result', '')[:100]}"
             for r in previous_responses
         ]) if previous_responses else "(아직 없음)"
+
+        # [5-3] 사용 가능한 담당만 선택지로 제시
+        available_text = ""
+        if available_workers:
+            choices_map = {
+                "RULES": "rules",
+                "FEE": "fee",
+                "BOOKING": "booking"
+            }
+            available_choices = " | ".join([f'"{choices_map.get(w, w.lower())}"' for w in available_workers]) + ' | "FINISH"'
+            available_text = f"\n\n사용 가능한 선택: {available_choices}"
 
         prompt = f"""당신은 팀의 지휘자입니다. 오늘은 {self.today_str} 입니다.
 
@@ -179,7 +190,7 @@ class Supervisor:
 {responses_text}
 
 다음 담당을 선택하세요. JSON 형식으로:
-{{"next": "rules" | "fee" | "booking" | "FINISH", "reason": "왜 이 담당인지"}}
+{{"next": "rules" | "fee" | "booking" | "FINISH", "reason": "왜 이 담당인지"}}{available_text}
 
 각 담당 역할:
 - rules: 규정 검색 (주차, 수업시간, 환불 기준 등)
@@ -221,15 +232,59 @@ def supervisor_node(state: TeamState) -> dict:
     if call_count >= 4:
         return {"next_worker": "FINISH"}
 
-    # [5-3] 다음 담당 선택 (reason 포함)
+    # [5-3] 가능한 담당 목록 계산 (코드로 선택지 제한)
+    question = state.get("question", "").lower()
+    worker_responses = state.get("worker_responses", [])
+    already_called = set(r.get("tool", "") for r in worker_responses)
+
+    available_workers = []
+
+    # [5-3] 규정 담당: 주차/환불/시간표/규칙 단어 있고 미호출 → 선택지에 포함
+    if ("주차" in question or "환불" in question or "시간표" in question or
+        "규정" in question or "규칙" in question or "기준" in question):
+        if "search_rules" not in already_called:
+            available_workers.append("RULES")
+
+    # [5-3] 수강료 담당: 금액/얼마/가격/수강료 단어 있고 미호출 → 선택지에 포함
+    if ("금액" in question or "얼마" in question or "가격" in question or
+        "수강료" in question or "비용" in question or "할인" in question):
+        if "calculate_course_fee" not in already_called:
+            available_workers.append("FEE")
+
+    # [5-3] 예약 담당: 예약/날짜/gpu/pc 단어 있고 미호출 → 선택지에 포함
+    # [5-3] 주의: "시간"은 주차 시간과 혼동되므로 제외
+    if ("예약" in question or ("날짜" in question and "시간" in question) or
+        "gpu" in question or "pc" in question):
+        if "reserve_gpu_pc" not in already_called:
+            available_workers.append("BOOKING")
+
+    # [5-3] 디버그: 선택지와 이미 호출된 도구 표시
+    # print(f"[DEBUG] 선택지: {available_workers}, 이미 호출: {already_called}")
+
+    # [5-3] 선택지가 없으면 바로 종료
+    if not available_workers:
+        print(f"\n[지휘자] → FINISH")
+        print(f"  이유: 모든 요청이 처리됨")
+        return {"next_worker": "FINISH"}
+
+    # [5-3] 모델에게 가능한 담당만 선택하도록 함 (available_workers 명시)
     route_result = supervisor.route(
         state["question"],
         state.get("remaining_requests", []),
-        state.get("worker_responses", [])
+        state.get("worker_responses", []),
+        available_workers
     )
 
     next_worker = route_result["next"]
     reason = route_result["reason"]
+
+    # [5-3] 선택지 밖의 담당이면 무시하고 available_workers[0] 선택 또는 FINISH
+    if next_worker not in available_workers and next_worker != "FINISH":
+        if available_workers:
+            next_worker = available_workers[0]
+            # print(f"[DEBUG] 모델 선택 무시, available_workers[0] 사용: {next_worker}")
+        else:
+            next_worker = "FINISH"
 
     print(f"\n[지휘자] → {next_worker}")
     print(f"  이유: {reason}")
@@ -292,36 +347,31 @@ def booking_node(state: TeamState) -> dict:
 
 
 def finish_node(state: TeamState) -> dict:
-    """[5-3] 최종 답변 작성 (도구 결과만 사용)"""
-    # [5-3] 도구 결과만으로 답변 작성
-    responses_text = "\n".join([
-        f"- {r.get('tool', '?')}: {r.get('raw', '')}"
-        for r in state.get("worker_responses", [])
-    ])
+    """[5-3] 최종 답변 작성 (도구 결과만 사용, 모델 해석 없음)"""
+    # [5-3] 도구 결과들을 직접 조합 (모델 사용 안 함)
+    final_answer_parts = []
 
-    prompt = f"""도구들의 실행 결과만으로 답변을 작성하세요.
-질문: {state["question"]}
+    # [5-3] DEBUG
+    # print(f"\n[DEBUG finish_node] worker_responses: {state.get('worker_responses', [])}")
 
-도구 결과:
-{responses_text}
+    for r in state.get("worker_responses", []):
+        tool = r.get("tool", "?")
+        result = r.get("raw", "")
 
-이 결과들을 조합해서 명확한 답변을 작성하세요.
-결과에 없는 내용은 절대 추가하지 마세요."""
+        if tool == "search_rules" and result and result != "규정에 없음":
+            final_answer_parts.append(f"[규정 정보]\n{result}")
+        elif tool == "calculate_course_fee" and result:
+            final_answer_parts.append(f"[수강료 정보]\n{result}")
+        elif tool == "reserve_gpu_pc" and result:
+            final_answer_parts.append(f"[예약 정보]\n{result}")
 
-    llm = ChatOllama(
-        model=CHAT_MODEL,
-        base_url=OLLAMA_BASE_URL,
-        temperature=0,
-        num_ctx=8192,
-        num_predict=512,
-        timeout=120
-    )
-
-    response = llm.invoke([HumanMessage(content=prompt)])
-    final_answer = response.content.strip()
+    if final_answer_parts:
+        final_answer = "\n\n".join(final_answer_parts)
+    else:
+        final_answer = "요청된 정보를 찾을 수 없습니다."
 
     print(f"\n[최종 답변]")
-    print(f"  {final_answer[:150]}...\n")
+    print(f"  {final_answer[:300]}...\n")
 
     return {"final_answer": final_answer}
 
