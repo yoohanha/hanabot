@@ -157,25 +157,16 @@ def executor_node(state: ReflectionState) -> dict:
             print(f"  STEP {step_num}: {do_desc}")
             print(f"    도구: {tool_name}, 인자: {args}")
 
-            # 도구 실행
+            # [5-2] 도구 실행 (.invoke 형태)
             result = ""
             if tool_name == "get_today":
-                result = get_today()
+                result = get_today.invoke({})
             elif tool_name == "search_rules":
-                question = args.get("question", "")
-                result = search_rules(question)
+                result = search_rules.invoke(args)
             elif tool_name == "calculate_course_fee":
-                course = args.get("course", "")
-                months = args.get("months", 1)
-                discount_type = args.get("discount_type", "없음")
-                result = calculate_course_fee(course, months, discount_type)
+                result = calculate_course_fee.invoke(args)
             elif tool_name == "reserve_gpu_pc":
-                date = args.get("date", "")
-                start_time = args.get("start_time", "")
-                duration = args.get("duration", 2)
-                pc_number = args.get("pc_number", 1)
-                student_id = args.get("student_id", "HANA-001")
-                result = reserve_gpu_pc(date, start_time, duration, pc_number, student_id)
+                result = reserve_gpu_pc.invoke(args)
 
             # 결과 저장 (앞 50자)
             result_preview = str(result)[:50] if result else "(빈 결과)"
@@ -248,7 +239,7 @@ def reflector_node(state: ReflectionState) -> dict:
     question = state.get("question", "")
     final_answer = state.get("final_answer", "")
     results = state.get("results", [])
-    llm = create_llama()
+    llm = create_llm()  # [5-2] 오타 수정: create_llama() → create_llm()
 
     # 1. 도구 결과 검증
     if not results:
@@ -350,7 +341,7 @@ def replanner_node(state: ReflectionState) -> dict:
     print(f"\n[재계획 시도 {retry_count + 1}회]")
     print(f"  이유: {feedback}\n")
 
-    # 피드백을 반영해 재계획
+    # [5-2] 피드백을 반영해 재계획
     llm = create_llm()
     question = state["question"]
 
@@ -382,17 +373,21 @@ def replanner_node(state: ReflectionState) -> dict:
         response = llm.invoke([HumanMessage(content=prompt)])
         response_text = response.content.strip()
 
-        # JSON 추출
+        # [5-2] JSON 추출
         json_match = re.search(r'\[\s*\{.*?\}\s*\]', response_text, re.DOTALL)
         if json_match:
             json_text = json_match.group(0)
             plan = json.loads(json_text)
-            if isinstance(plan, list):
+            if isinstance(plan, list) and plan:
                 return {"plan": plan, "retry_count": retry_count + 1}
 
+        # [5-2] 재계획 실패
+        print(f"[재계획 실패] JSON 파싱 실패\n")
         return {"plan": [], "retry_count": retry_count + 1}
 
-    except:
+    except Exception as e:
+        # [5-2] 재계획 오류
+        print(f"[재계획 실패] {str(e)}\n")
         return {"plan": [], "retry_count": retry_count + 1}
 
 
