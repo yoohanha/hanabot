@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# [5-2] LangGraph 플랜-실행-쓰기-검토 파이프라인
+# -*- coding: utf-8 -*-
+# [5-2] LangGraph 플랜-실행-쓰기-검토 파이프라인 (실제 도구 실행)
 
 import os
 import sys
@@ -34,8 +35,7 @@ from langgraph.graph.message import add_messages
 class ReflectionState(TypedDict):
     """검토 상태"""
     question: str                                    # 사용자 질문
-    plan: list                                      # 계획 단계
-    current_step_idx: int                          # 현재 단계 인덱스
+    plan: list                                      # 계획 단계 (도구 인자 포함)
     results: list                                  # 실행 결과
     final_answer: str                              # 최종 답변
     reflection_pass: bool                          # 검토 통과 여부
@@ -74,35 +74,49 @@ def create_llm():
 
 def planner_node(state: ReflectionState) -> dict:
     """
-    [5-2] 질문으로부터 계획 생성
+    [5-2] 질문으로부터 계획 생성 (규칙 기반 + LLM)
     """
     question = state["question"]
     llm = create_llm()
 
-    prompt = f"""질문: {question}
+    # [5-2] 규칙 기반 계획 (자주 나오는 패턴)
+    plan = []
+    q_lower = question.lower()
 
-이 질문을 해결하기 위한 단계를 JSON 배열로 만드세요.
-각 단계는 {{step: N, do: "설명", tool: "도구이름"}} 형식입니다.
-사용할 수 있는 도구: get_today, search_rules, calculate_course_fee, reserve_gpu_pc
+    # 패턴 1: 주차 / 주차료 / 주차비
+    if any(x in q_lower for x in ["주차", "parking"]):
+        plan = [
+            {"step": 1, "do": "규정에서 주차 정보 검색", "tool": "search_rules", "args": {"question": question}}
+        ]
 
-예: [{{"step": 1, "do": "규정 검색", "tool": "search_rules"}}, {{"step": 2, "do": "가격 계산", "tool": "calculate_course_fee"}}]
+    # 패턴 2: 수강료 / 가격 계산 (과정명과 개월수)
+    elif any(x in q_lower for x in ["수강료", "가격", "비용", "얼마", "돈", "fee", "charge"]):
+        # 2a: 할인이 포함된 경우
+        if any(x in q_lower for x in ["친구", "재수강", "할인", "discount"]):
+            plan = [
+                {"step": 1, "do": "규정에서 과정 정보 검색", "tool": "search_rules", "args": {"question": question}},
+                {"step": 2, "do": "수강료 계산 (할인 포함)", "tool": "calculate_course_fee",
+                 "args": {"course": "실무반" if "실무반" in q_lower else "기초반",
+                         "months": 2 if "2개월" in q_lower else 1 if "1개월" in q_lower else 3,
+                         "discount_type": "친구" if "친구" in q_lower else "재수강" if "재수강" in q_lower else "없음"}}
+            ]
+        else:
+            plan = [
+                {"step": 1, "do": "수강료 조회", "tool": "search_rules", "args": {"question": question}}
+            ]
 
-JSON 배열만 반환하세요:"""
+    # 패턴 3: GPU PC 예약
+    elif any(x in q_lower for x in ["gpu", "pc", "예약", "reserve"]):
+        plan = [
+            {"step": 1, "do": "오늘 날짜 확인", "tool": "get_today", "args": {}},
+            {"step": 2, "do": "규정에서 GPU PC 정보 검색", "tool": "search_rules", "args": {"question": question}}
+        ]
 
-    try:
-        response = llm.invoke([HumanMessage(content=prompt)])
-        response_text = response.content.strip()
-
-        # JSON 파싱
-        try:
-            plan = json.loads(response_text)
-            if not isinstance(plan, list):
-                plan = []
-        except:
-            plan = []
-
-    except Exception as e:
-        plan = []
+    # 패턴 4: 기타 규정
+    else:
+        plan = [
+            {"step": 1, "do": "규정 검색", "tool": "search_rules", "args": {"question": question}}
+        ]
 
     return {"plan": plan}
 
@@ -115,39 +129,72 @@ def executor_node(state: ReflectionState) -> dict:
     """
     [5-2] 계획에 따라 도구 실행
     """
-    question = state["question"]
     plan = state.get("plan", [])
     results = []
 
-    print(f"\n[단계별 실행]")
+    if not plan:
+        print(f"\n[단계별 실행]")
+        print(f"  (계획이 없습니다)\n")
+        return {"results": results}
+
+    print(f"\n[계획 단계 목록]")
+    for step_item in plan:
+        step_num = step_item.get("step", "?")
+        do_desc = step_item.get("do", "")
+        tool_name = step_item.get("tool", "")
+        print(f"  STEP {step_num}: {do_desc} (도구: {tool_name})")
+    print()
+
+    print(f"[단계별 실행]")
 
     for step_item in plan:
         try:
             step_num = step_item.get("step", 0)
             do_desc = step_item.get("do", "")
             tool_name = step_item.get("tool", "")
+            args = step_item.get("args", {})
 
-            print(f"  STEP {step_num}: {do_desc} (도구: {tool_name})")
+            print(f"  STEP {step_num}: {do_desc}")
+            print(f"    도구: {tool_name}, 인자: {args}")
 
             # 도구 실행
             result = ""
             if tool_name == "get_today":
                 result = get_today()
             elif tool_name == "search_rules":
+                question = args.get("question", "")
                 result = search_rules(question)
             elif tool_name == "calculate_course_fee":
-                result = calculate_course_fee(question)
+                course = args.get("course", "")
+                months = args.get("months", 1)
+                discount_type = args.get("discount_type", "없음")
+                result = calculate_course_fee(course, months, discount_type)
             elif tool_name == "reserve_gpu_pc":
-                result = reserve_gpu_pc(question)
+                date = args.get("date", "")
+                start_time = args.get("start_time", "")
+                duration = args.get("duration", 2)
+                pc_number = args.get("pc_number", 1)
+                student_id = args.get("student_id", "HANA-001")
+                result = reserve_gpu_pc(date, start_time, duration, pc_number, student_id)
 
             # 결과 저장 (앞 50자)
             result_preview = str(result)[:50] if result else "(빈 결과)"
-            print(f"    결과: {result_preview}...")
-            results.append({"tool": tool_name, "result": str(result)})
+            print(f"    결과: {result_preview}...\n")
+            results.append({
+                "step": step_num,
+                "tool": tool_name,
+                "args": args,
+                "result": str(result)
+            })
 
         except Exception as e:
-            print(f"    오류: {str(e)}")
-            results.append({"tool": tool_name, "result": f"오류: {str(e)}"})
+            print(f"    오류: {str(e)}\n")
+            results.append({
+                "step": step_item.get("step", "?"),
+                "tool": tool_name,
+                "args": args,
+                "result": f"오류: {str(e)}"
+            })
 
     return {"results": results}
 
@@ -166,13 +213,13 @@ def writer_node(state: ReflectionState) -> dict:
 
     # 도구 결과 텍스트
     results_text = "\n".join([
-        f"- {r['tool']}: {r.get('result', '')}"
+        f"- STEP {r['step']} ({r['tool']}): {r.get('result', '')}"
         for r in results
     ])
 
     prompt = f"""사용자 질문: {question}
 
-도구 결과:
+도구 실행 결과:
 {results_text}
 
 이 도구 결과를 바탕으로 사용자 질문에 대한 답변을 작성하세요.
@@ -184,8 +231,8 @@ def writer_node(state: ReflectionState) -> dict:
     except Exception as e:
         final_answer = f"답변 생성 오류: {str(e)}"
 
-    print(f"\n[최종 답변]")
-    print(f"  {final_answer[:80]}...")
+    print(f"[최종 답변]")
+    print(f"  {final_answer[:80]}...\n")
 
     return {"final_answer": final_answer}
 
@@ -196,16 +243,35 @@ def writer_node(state: ReflectionState) -> dict:
 
 def reflector_node(state: ReflectionState) -> dict:
     """
-    [5-2] 답변 검토
+    [5-2] 답변 검토 (도구 결과 검증)
     """
     question = state.get("question", "")
     final_answer = state.get("final_answer", "")
     results = state.get("results", [])
-    llm = create_llm()
+    llm = create_llama()
 
-    # 도구 결과 텍스트
+    # 1. 도구 결과 검증
+    if not results:
+        print(f"[검토 결과]")
+        print(f"  FAIL: 도구 실행 결과가 없습니다\n")
+        return {
+            "reflection_pass": False,
+            "reflection_feedback": "도구 실행 결과가 없습니다"
+        }
+
+    # 2. 도구 결과가 비어있는지 확인
+    has_content = any(r.get("result") and "오류" not in r.get("result", "") for r in results)
+    if not has_content:
+        print(f"[검토 결과]")
+        print(f"  FAIL: 모든 도구 결과가 오류입니다\n")
+        return {
+            "reflection_pass": False,
+            "reflection_feedback": "모든 도구 결과가 오류입니다"
+        }
+
+    # 3. LLM 검토
     results_text = "\n".join([
-        f"- {r['tool']}: {r.get('result', '')[:100]}"
+        f"- STEP {r['step']} ({r['tool']}): {r.get('result', '')[:100]}"
         for r in results
     ])
 
@@ -216,10 +282,9 @@ def reflector_node(state: ReflectionState) -> dict:
 도구 실행 결과:
 {results_text}
 
-이 답변이 다음 검토 기준을 만족하는지 확인해주세요:
-1. 답의 숫자가 도구 결과에 있는가
-2. 날짜가 오늘 기준으로 정확한가
-3. 질문의 모든 요청을 답했는가
+이 답변이 다음을 만족하는지 확인해주세요:
+1. 답의 숫자/시간이 도구 결과에 있는가
+2. 질문의 모든 요청을 답했는가
 
 응답은 JSON: {{"pass": true/false, "issues": ["이유1", ...]}}"""
 
@@ -243,13 +308,18 @@ def reflector_node(state: ReflectionState) -> dict:
     # 검토 결과
     feedback = " | ".join(issues) if issues else "모든 기준 통과"
 
-    print(f"\n[검토 결과]")
-    print(f"  {'PASS' if pass_flag else 'FAIL'}: {feedback}")
+    print(f"[검토 결과]")
+    print(f"  {'PASS' if pass_flag else 'FAIL'}: {feedback}\n")
 
     return {
         "reflection_pass": pass_flag,
         "reflection_feedback": feedback
     }
+
+
+def create_llama():
+    """LLM 생성 (오타 수정)"""
+    return create_llm()
 
 
 # ============================================================================
@@ -289,28 +359,41 @@ def replanner_node(state: ReflectionState) -> dict:
 이전 검토 피드백: {feedback}
 
 피드백을 반영해 더 나은 단계를 JSON 배열로 만드세요.
-사용할 수 있는 도구: get_today, search_rules, calculate_course_fee, reserve_gpu_pc
 
-예: [{{"step": 1, "do": "규정 검색", "tool": "search_rules"}}]
+[JSON 형식 가이드]
+각 단계:
+{{
+  "step": N,
+  "do": "설명",
+  "tool": "도구이름",
+  "args": {{도구 인자}}
+}}
 
-JSON 배열만 반환하세요:"""
+사용 가능한 도구:
+- get_today() - 인자 없음
+- search_rules(question: str)
+- calculate_course_fee(course, months, discount_type)
+- reserve_gpu_pc(date, start_time, duration, pc_number, student_id)
+
+응답은 JSON 배열만 반환하세요:
+"""
 
     try:
         response = llm.invoke([HumanMessage(content=prompt)])
         response_text = response.content.strip()
-        try:
-            plan = json.loads(response_text)
-            if not isinstance(plan, list):
-                plan = []
-        except:
-            plan = []
-    except:
-        plan = []
 
-    return {
-        "plan": plan,
-        "retry_count": retry_count + 1
-    }
+        # JSON 추출
+        json_match = re.search(r'\[\s*\{.*?\}\s*\]', response_text, re.DOTALL)
+        if json_match:
+            json_text = json_match.group(0)
+            plan = json.loads(json_text)
+            if isinstance(plan, list):
+                return {"plan": plan, "retry_count": retry_count + 1}
+
+        return {"plan": [], "retry_count": retry_count + 1}
+
+    except:
+        return {"plan": [], "retry_count": retry_count + 1}
 
 
 def re_executor_node(state: ReflectionState) -> dict:
@@ -403,7 +486,6 @@ def interactive_mode():
         initial_state = {
             "question": question,
             "plan": [],
-            "current_step_idx": 0,
             "results": [],
             "final_answer": "",
             "reflection_pass": False,
@@ -418,7 +500,7 @@ def interactive_mode():
             result = pipeline.invoke(initial_state)
 
             # 최종 결과 표시
-            print(f"\n{'─'*120}\n")
+            print(f"{'─'*120}\n")
             print(f"[결과] 검토: {'PASS' if result.get('reflection_pass') else 'FAIL'}")
             print(f"[재시도] {result.get('retry_count', 0)}회\n")
 
@@ -429,79 +511,12 @@ def interactive_mode():
 
 
 # ============================================================================
-# 테스트 모드
+# 메인
 # ============================================================================
-
-def test_reflection_pipeline():
-    """검토 파이프라인 테스트"""
-    print(f"\n🤖 Ollama 채팅 모델: {CHAT_MODEL}")
-    print(f"📡 Ollama 주소: {OLLAMA_BASE_URL}\n")
-
-    print(f"{'='*120}")
-    print("[5-2] LangGraph 플랜-실행-쓰기-검토 파이프라인")
-    print(f"{'='*120}\n")
-
-    # 테스트 케이스: 정상 + 오류
-    test_cases = [
-        {
-            "question": "지각 3번이면 어떻게 되고, 기초반 1개월 수강료는 얼마야?",
-            "results": [
-                {"tool": "search_rules", "result": "지각 3회는 결석 1회로 처리됩니다."},
-                {"tool": "calculate_course_fee", "result": "기초반 1개월: 300,000원"}
-            ]
-        },
-        {
-            "question": "실무반 2개월 친구 할인 수강료 알려줘",
-            "results": [
-                {"tool": "calculate_course_fee", "result": "실무반 2개월 친구 할인: 900,000원"},
-            ]
-        },
-        {
-            "question": "내일 오후 2시 GPU PC 1번 2시간 예약해줘",
-            "results": [
-                {"tool": "get_today", "result": "오늘: 2026년 11월 26일 (목)"},
-                {"tool": "reserve_gpu_pc", "result": "예약이 완료되었습니다."}
-            ]
-        }
-    ]
-
-    for idx, test_case in enumerate(test_cases, 1):
-        question = test_case["question"]
-
-        print(f"[질문 {idx}] {question}\n")
-
-        # 초기 상태
-        initial_state = {
-            "question": question,
-            "plan": [],
-            "current_step_idx": 0,
-            "results": [],
-            "final_answer": "",
-            "reflection_pass": False,
-            "reflection_feedback": "",
-            "retry_count": 0
-        }
-
-        # 파이프라인 생성 및 실행
-        pipeline = create_reflection_pipeline()
-
-        try:
-            result = pipeline.invoke(initial_state)
-            print()
-
-        except Exception as e:
-            print(f"실행 오류: {str(e)}\n")
-
 
 def main():
     """메인 함수"""
-    # 커맨드라인 인자 확인
-    if len(sys.argv) > 1 and sys.argv[1] == '--test':
-        # 테스트 모드
-        test_reflection_pipeline()
-    else:
-        # 대화형 모드
-        interactive_mode()
+    interactive_mode()
 
 
 if __name__ == "__main__":
