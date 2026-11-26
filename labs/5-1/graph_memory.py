@@ -28,7 +28,8 @@ from langchain_core.messages import ToolMessage, BaseMessage, HumanMessage
 from langgraph.graph import StateGraph, START, END
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.checkpoint.memory import MemorySaver  # [5-1] 메모리 체크포인터
-from typing_extensions import TypedDict
+from typing_extensions import TypedDict, Annotated
+from langgraph.graph.message import add_messages  # [5-1] 메시지 병합
 
 
 # ============================================================================
@@ -37,7 +38,8 @@ from typing_extensions import TypedDict
 
 class AgentState(TypedDict):
     """에이전트 상태"""
-    messages: list  # 메시지 히스토리 (스레드별로 저장됨)
+    # [5-1] Annotated[list, add_messages]: 메시지 자동 병합
+    messages: Annotated[list, add_messages]
 
 
 # ============================================================================
@@ -95,8 +97,8 @@ def agent_node(state: AgentState, llm_with_tools, system_msg: str) -> dict:
     # 모델 호출
     response = llm_with_tools.invoke(messages)
 
-    # 메시지 히스토리에 추가
-    return {"messages": messages + [response]}
+    # [5-1] add_messages가 자동으로 병합하므로 response만 반환
+    return {"messages": [response]}
 
 
 # ============================================================================

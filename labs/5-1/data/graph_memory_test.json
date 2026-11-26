@@ -2,22 +2,22 @@
   {
     "thread_id": "HANA-007",
     "question": "나는 HANA-007, 실무반에 관심 있어",
-    "answer": "오류: [WinError 10061] 대상 컴퓨터에서 연결을 거부했으므로 연결하",
-    "has_memory": "❌",
-    "message_count": 0
+    "answer": "오늘은 목요일입니다. 학원에서 공부하고 싶은 학생이 계신가요?",
+    "has_memory": "-",
+    "message_count": 3
   },
   {
     "thread_id": "HANA-007",
     "question": "내 관심 과정의 2개월 수강료 알려줘",
-    "answer": "오류: [WinError 10061] 대상 컴퓨터에서 연결을 거부했으므로 연결하",
-    "has_memory": "❌",
-    "message_count": 0
+    "answer": "오늘은 목요일입니다. 학원에서 공부하고 싶은 학생이 계신가요?",
+    "has_memory": "✅ 기억함",
+    "message_count": 3
   },
   {
     "thread_id": "HANA-002",
     "question": "내 관심 과정의 2개월 수강료 알려줘",
-    "answer": "오류: [WinError 10061] 대상 컴퓨터에서 연결을 거부했으므로 연결하",
-    "has_memory": "❌",
-    "message_count": 0
+    "answer": "오늘은 목요일입니다. 학원에서 공부하고 싶은 학생이 계신가요?",
+    "has_memory": "⚠️ 기억함 (오류)",
+    "message_count": 3
   }
 ]
