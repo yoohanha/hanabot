@@ -398,6 +398,9 @@ def interactive_mode():
             # 에이전트 실행
             try:
                 step_num = 0
+                # [5-1] tools 노드의 도구 실행 결과를 추적
+                tool_results = {}
+
                 for step_output in compiled_graph.stream(
                     state,
                     config=config,
@@ -412,16 +415,39 @@ def interactive_mode():
                             last_msg = messages[-1]
                             msg_type = type(last_msg).__name__
 
-                            # 노드 표시
-                            if msg_type == "AIMessage" and hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
-                                tool_names = [tc.get("name", "?") for tc in last_msg.tool_calls]
-                                print(f"  [{step_num}] {node_name:10} → 도구: {', '.join(tool_names)}")
+                            # [5-1] agent 노드: 도구 선택 또는 최종 답변
+                            if node_name == "agent":
+                                if msg_type == "AIMessage" and hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
+                                    tool_names = [tc.get("name", "?") for tc in last_msg.tool_calls]
+                                    print(f"  [{step_num}] {node_name:10} → 도구 선택: {', '.join(tool_names)}")
+                                    # [5-1] 도구 이름 저장 (tools 노드에서 사용)
+                                    for tc in last_msg.tool_calls:
+                                        tool_results[tc.get("id", "?")] = tc.get("name", "?")
 
-                            elif msg_type == "AIMessage" and not (hasattr(last_msg, "tool_calls") and last_msg.tool_calls):
-                                answer = last_msg.content
-                                print(f"  [{step_num}] {node_name:10} → 답변: {answer[:60]}{'...' if len(answer) > 60 else ''}")
+                                elif msg_type == "AIMessage" and not (hasattr(last_msg, "tool_calls") and last_msg.tool_calls):
+                                    answer = last_msg.content
+                                    print(f"  [{step_num}] {node_name:10} → 최종 답변: {answer[:50]}{'...' if len(answer) > 50 else ''}")
 
-                # 메모리 상태 확인
+                            # [5-1] tools 노드: 도구 실행 결과 표시
+                            elif node_name == "tools":
+                                if messages:
+                                    # ToolMessage에서 결과 추출
+                                    tool_messages = [m for m in messages if type(m).__name__ == "ToolMessage"]
+                                    for tm in tool_messages:
+                                        # 도구 이름 찾기
+                                        tool_name = "?"
+                                        for tool in tools:
+                                            if tool.name in str(tm.content)[:50]:
+                                                tool_name = tool.name
+                                                break
+
+                                        result_preview = str(tm.content)[:50]
+                                        if len(str(tm.content)) > 50:
+                                            result_preview += "..."
+
+                                        print(f"  [{step_num}] {node_name:10} → {tool_name:20} {result_preview}")
+
+                # [5-1] 메모리 상태 확인
                 saved_state = compiled_graph.get_state(config)
                 message_count = len(saved_state.values.get("messages", []))
                 print(f"\n  💾 메모리: {message_count}개 메시지 저장됨\n")
