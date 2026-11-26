@@ -1,0 +1,62 @@
+[
+  {
+    "question": "무료 주차는 몇시간이야?",
+    "type": "simple",
+    "answer_key": "2시간",
+    "single_answer": "당신이 방문하는 곳에 따라 다르지만, 일반적으로 무료 주차는 2-3시간 정도 가능합니다.",
+    "single_correct": false,
+    "single_tools": 1,
+    "team_answer": "\"학원에서 무료 주차 시간은 2시간입니다.\"",
+    "team_correct": true,
+    "team_tools": 2,
+    "team_slow_reason": "정확성 개선으로 인한 trade-off"
+  },
+  {
+    "question": "기초반 1개월은 얼마야?",
+    "type": "simple",
+    "answer_key": "400,000원~500,000원",
+    "single_answer": "기초반 1개월의 가격은 300,000원입니다.",
+    "single_correct": false,
+    "single_tools": 1,
+    "team_answer": "기초반 1개월은 1,200,000원입니다.",
+    "team_correct": false,
+    "team_tools": 1,
+    "team_slow_reason": ""
+  },
+  {
+    "question": "오늘 날짜가 뭐야?",
+    "type": "simple",
+    "answer_key": "2026년 11월 26일 (목)",
+    "single_answer": "오늘 날짜는 `2023-02-20`입니다.",
+    "single_correct": false,
+    "single_tools": 1,
+    "team_answer": "최종 답변: 오늘 날짜는 알려드릴 수 없습니다.",
+    "team_correct": false,
+    "team_tools": 1,
+    "team_slow_reason": ""
+  },
+  {
+    "question": "실무반 2개월 친구 할인 금액이랑 환불 규정 알려줘",
+    "type": "complex",
+    "answer_key": "친구 10% 할인, 환불 규정 확인",
+    "single_answer": "실무반 2개월 친구 할인 금액은 2,500,000 원입니다.\n\n환불 규정은 다음과 같습니다.\n\n*   환불 요청 시, 가드레일 검사를 통과해야 합니다.\n*   환불 요청 시, 1주",
+    "single_correct": true,
+    "single_tools": 1,
+    "team_answer": "실무반 2개월 가격은 월 50만 원 * 2 = 100만 원입니다. 친구 할인 기준은 10%로, 100만 원 * 10% = 10만 원 할인되며, 실무반 2개월 가격은 100만 원 -",
+    "team_correct": true,
+    "team_tools": 2,
+    "team_slow_reason": "정확성 개선으로 인한 trade-off"
+  },
+  {
+    "question": "내일 오후 2시 GPU 1번 2시간 예약하고, 현재 규정에서 주차시간도 알려줘",
+    "type": "complex",
+    "answer_key": "예약 가능 (2시간), 주차 2시간",
+    "single_answer": "내일 오후 2시 GPU 1번 2시간 예약이 가능합니다. 현재 규정에 따르면, 주차시간은 1시간당 10,000원입니다.",
+    "single_correct": true,
+    "single_tools": 2,
+    "team_answer": "내일 오후 2시 GPU 1번 2시간 예약이 완료되었습니다.",
+    "team_correct": true,
+    "team_tools": 2,
+    "team_slow_reason": ""
+  }
+]
