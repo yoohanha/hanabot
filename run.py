@@ -187,9 +187,10 @@ def show_menu():
     print("10. AI 에이전트 · MCP 도구 (4-3)")
     print("11. AI 에이전트 · 안전장치 (4-4)")
     print("12. 에이전틱 AI · LangGraph (5-1)")
+    print("13. 에이전틱 AI · Plan & Reflect (5-2)")
     print("q. 종료\n")
     print("-" * 60)
-    return input("번호를 입력하세요 (1-12, q) > ").strip()
+    return input("번호를 입력하세요 (1-13, q) > ").strip()
 
 def run_hello_test():
     """Ollama 연결 테스트"""
@@ -304,11 +305,14 @@ def main():
         elif choice == '12':
             # [5-1] 에이전틱 AI · LangGraph
             run_command("labs/5-1/graph_memory.py", "에이전틱 AI · LangGraph")
+        elif choice == '13':
+            # [5-2] 에이전틱 AI · Plan & Reflect
+            run_command("labs/5-2/reflect.py", "에이전틱 AI · Plan & Reflect")
         elif choice.lower() == 'q':
             print("프로그램을 종료합니다. 👋\n")
             break
         else:
-            print("❌ 잘못된 선택입니다. 1-12 또는 q를 입력하세요.\n")
+            print("❌ 잘못된 선택입니다. 1-13 또는 q를 입력하세요.\n")
 
 if __name__ == "__main__":
     main()

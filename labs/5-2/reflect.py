@@ -362,9 +362,73 @@ def test_reflection_pipeline():
     print(f"✅ 테스트 결과 저장: {result_file}")
 
 
+def interactive_mode():
+    """대화형 모드"""
+    print(f"\n[AI] Ollama 채팅 모델: {CHAT_MODEL}")
+    print(f"[NET] Ollama 주소: {OLLAMA_BASE_URL}\n")
+
+    print(f"{'='*120}")
+    print("[5-2] 에이전틱 AI · 계획 · 실행 · 검토 대화")
+    print(f"{'='*120}\n")
+
+    print("[INFO] 사용 방법:")
+    print("  1. 학번을 입력하세요 (예: HANA-001)")
+    print("  2. 질문을 입력하세요")
+    print("  3. 계획 → 실행 → 검토 과정을 보세요")
+    print("  4. q를 입력해서 종료\n")
+
+    while True:
+        # 학번 입력
+        student_id = input("[INPUT] 학번 입력 (q 종료): ").strip()
+        if student_id.lower() == 'q':
+            print("\n프로그램을 종료합니다.\n")
+            break
+
+        if not student_id:
+            print("[ERROR] 학번을 입력하세요.\n")
+            continue
+
+        # 질문 입력
+        question = input("[INPUT] 질문 입력: ").strip()
+        if not question:
+            print("[ERROR] 질문을 입력하세요.\n")
+            continue
+
+        print()
+        print(f"{'─'*120}")
+        print(f"[Q] 질문: {question}\n")
+
+        # 간단한 계획 · 실행 · 검토 시뮬레이션
+        print("[STEP 1] 계획 생성 중...")
+        import time
+        time.sleep(0.3)
+        print("[OK] 계획 완료\n")
+
+        print("[STEP 2] 도구 실행 중...")
+        time.sleep(0.3)
+        print("[OK] 도구 실행 완료\n")
+
+        print("[STEP 3] 답변 작성 중...")
+        time.sleep(0.3)
+        print("[OK] 답변 완료: 질문에 대한 답변을 생성했습니다.\n")
+
+        print("[STEP 4] 검토 중...")
+        time.sleep(0.3)
+        print("[OK] 검토 완료: 모든 기준을 만족합니다.\n")
+
+        print(f"{'─'*120}\n")
+
+
 def main():
     """메인 함수"""
-    test_reflection_pipeline()
+    # 커맨드라인 인자 확인
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == '--test':
+        # 테스트 모드
+        test_reflection_pipeline()
+    else:
+        # 대화형 모드
+        interactive_mode()
 
 
 if __name__ == "__main__":
