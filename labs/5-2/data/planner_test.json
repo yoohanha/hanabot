@@ -1,0 +1,20 @@
+[
+  {
+    "question": "지각 3번이면 어떻게 되고, 기초반 1개월 수강료는 얼마야?",
+    "success": true,
+    "steps": [],
+    "error": null
+  },
+  {
+    "question": "실무반 2개월 친구 할인 금액이랑 환불 규정 알려줘",
+    "success": false,
+    "steps": [],
+    "error": "계획 실패: JSON 형식 오류"
+  },
+  {
+    "question": "내일 오후 2시 GPU PC 1번 2시간 예약해줘",
+    "success": false,
+    "steps": [],
+    "error": "계획 실패: JSON 형식 오류"
+  }
+]
