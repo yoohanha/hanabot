@@ -195,6 +195,44 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "bge-m3")
 - **금지**: 외부 메신저(이메일, Slack, etc.)로 승인 요청 절대 금지
 - **예**: `input("위험한 동작을 수행하시겠습니까? (y/n): ")`
 
+## 📊 5부 LangGraph 규칙 (Part 5: 에이전틱 AI)
+
+### 파일 위치
+- **새 파일**: `labs/5-1/` ~ `labs/5-6/` 폴더 **안에만** 생성
+- **데이터 저장**: `labs/5-N/data/` (에이전트 로그, 상태 파일)
+
+### 단계 표시
+- 새로 추가하거나 수정한 코드: `# [5-N]` 주석 필수 (N: 1~6)
+
+### 수정 범위
+- **수정 금지**: `hanabot/`, `apps/`, `labs/1-4/` (1~4부 코드 그대로)
+- **불러오기만**: `from hanabot.rag import ...`, `from labs.4_1.hana_tools import ...` 등으로 1~4부 모듈 가져다 쓰기
+- **web/ 수정**: 5-5에서만 (`web/server.py`, `web/static/`) · 예약 파일은 `labs/4-1/data/` 만
+
+### 모델 & 도구 설정
+- **LLM 설정**: `ChatOllama` 고정
+  ```python
+  ChatOllama(
+      model=os.getenv("CHAT_MODEL", "llama3.1"),
+      temperature=0,          # 에이전트 결정성 필요
+      num_ctx=8192,          # 컨텍스트 윈도우
+      num_predict=512,       # 최대 출력 토큰
+      timeout=120            # 타임아웃 120초
+  )
+  ```
+- **시스템 메시지**: 오늘 날짜 `{today}` 포함 필수
+- **테스트**: 가짜 테스트 금지 · 실제 실행 결과만 기록
+
+### 도구 재사용 (1~4부)
+- **금지**: 도구를 복사하기
+- **필수**: import로 가져와 사용
+  ```python
+  from labs.4_1.hana_tools import get_today, search_rules, ...
+  from labs.4_2.long_memory import load_memory, save_memory, ...
+  from labs.4_3.mcp_integration import run_mcp_tool, ...
+  from labs.4_4.guard_check import check_safety, ...
+  ```
+
 ## 📌 체크리스트
 단계를 마치기 전에 확인:
 - [ ] 코드에 모델/주소 하드코딩 없음
