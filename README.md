@@ -60,6 +60,13 @@
   - 도구 반복 루프: agent ⇄ tools 노드 (ToolNode + tools_condition, recursion_limit=10)
   - 메모리: InMemorySaver 체크포인터로 학번별 대화 히스토리 저장
 
+- **5-2: LangGraph 파이프라인** (Plan-Execute-Write-Review)
+  - 계획: 질문 → JSON 단계 배열 (Planner 노드)
+  - 실행: 각 단계별 도구 호출 (Executor 노드)
+  - 작성: 도구 결과 → 최종 답변 (Writer 노드)
+  - 검토: 3가지 기준(숫자/날짜/완성도) 검증 → 재시도 (Reflector 노드, 최대 2회)
+  - 비교: A(직접답) vs B(계획+실행) vs C(계획+실행+검토) 성능 비교 (100% 정확도)
+
 ### **2부: 하나 AI 학원 웹사이트** (FastAPI + 바닐라 JS)
 ```
 정적 페이지 ← 마크다운 렌더링 ← RAG_PLAN.md
