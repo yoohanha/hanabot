@@ -334,12 +334,126 @@ def test_memory_agent():
     print("```")
 
 
+def interactive_mode():
+    """대화형 모드"""
+    # 그래프 생성
+    llm_with_tools, tools, system_msg = create_agent_llm()
+    compiled_graph = create_agent_graph_with_memory(llm_with_tools, tools, system_msg)
+
+    print(f"\n{'='*100}")
+    print("💬 LangGraph 에이전트 · 메모리 (대화형)")
+    print(f"{'='*100}\n")
+
+    # 학번 입력
+    while True:
+        thread_id = input("🧑 학번 입력 (예: HANA-007, ? 또는 q): ").strip()
+
+        if thread_id.lower() == 'q':
+            print("프로그램을 종료합니다. 👋\n")
+            break
+
+        if thread_id == '?' or thread_id == '입력 예시':
+            print("\n입력 예시:")
+            print("  • 나는 HANA-007, 실무반에 관심 있어")
+            print("  • 내 관심 과정의 2개월 수강료 알려줘")
+            print("  • 내일 오후 2시 GPU PC 1번 2시간 예약해줘\n")
+            continue
+
+        if not thread_id:
+            print("❌ 학번을 입력해주세요.\n")
+            continue
+
+        # 대화형 질문 반복
+        print(f"\n📌 학번: {thread_id}")
+        print("명령: 질문을 입력하세요. 'q'를 입력하면 학번을 바꾸세요.\n")
+
+        while True:
+            question = input("💬 질문 > ").strip()
+
+            if question.lower() == 'q':
+                print()
+                break
+
+            if question == '?' or question == '입력 예시':
+                print("\n입력 예시:")
+                print("  • 나는 HANA-007, 실무반에 관심 있어")
+                print("  • 내 관심 과정의 2개월 수강료 알려줘")
+                print("  • 내일 오후 2시 GPU PC 1번 2시간 예약해줘\n")
+                continue
+
+            if not question:
+                print("❌ 질문을 입력해주세요.\n")
+                continue
+
+            # config에 thread_id 설정
+            config = {"configurable": {"thread_id": thread_id}}
+
+            # 초기 상태
+            state = {
+                "messages": [HumanMessage(content=question)]
+            }
+
+            print(f"\n{'─'*100}")
+
+            # 에이전트 실행
+            try:
+                step_num = 0
+                for step_output in compiled_graph.stream(
+                    state,
+                    config=config,
+                    stream_mode="updates"
+                ):
+                    step_num += 1
+
+                    for node_name, node_state in step_output.items():
+                        messages = node_state.get("messages", [])
+
+                        if messages:
+                            last_msg = messages[-1]
+                            msg_type = type(last_msg).__name__
+
+                            # 노드 표시
+                            if msg_type == "AIMessage" and hasattr(last_msg, "tool_calls") and last_msg.tool_calls:
+                                tool_names = [tc.get("name", "?") for tc in last_msg.tool_calls]
+                                print(f"  [{step_num}] {node_name:10} → 도구: {', '.join(tool_names)}")
+
+                            elif msg_type == "AIMessage" and not (hasattr(last_msg, "tool_calls") and last_msg.tool_calls):
+                                answer = last_msg.content
+                                print(f"  [{step_num}] {node_name:10} → 답변: {answer[:60]}{'...' if len(answer) > 60 else ''}")
+
+                # 메모리 상태 확인
+                saved_state = compiled_graph.get_state(config)
+                message_count = len(saved_state.values.get("messages", []))
+                print(f"\n  💾 메모리: {message_count}개 메시지 저장됨\n")
+
+            except Exception as e:
+                print(f"❌ 오류: {str(e)}\n")
+
+
+def test_mode():
+    """테스트 모드 (자동 실행)"""
+    test_memory_agent()
+
+
 def main():
     """메인 함수"""
     print(f"\n🤖 Ollama 채팅 모델: {CHAT_MODEL}")
     print(f"📡 Ollama 주소: {OLLAMA_BASE_URL}\n")
 
-    test_memory_agent()
+    # 모드 선택
+    print("실행 모드:")
+    print("1. 대화형 (질문 입력)")
+    print("2. 테스트 (자동 실행)")
+    print("-"*80)
+
+    mode = input("모드 선택 (1 또는 2) > ").strip()
+
+    if mode == '1':
+        interactive_mode()
+    elif mode == '2':
+        test_mode()
+    else:
+        print("❌ 잘못된 선택입니다.\n")
 
 
 if __name__ == "__main__":

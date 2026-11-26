@@ -55,6 +55,11 @@
   - 성능 점수: 작업 성공률 / 공격 차단률 / 오차단
   - 대화형 에이전트: 가드레일이 켜진 하나봇 (학번 입력 → 대화 → 막힘 이유 표시)
 
+- **5-1: LangGraph 그래프** (Agentic AI · StateGraph)
+  - 갈림길: 질문을 규정/수강료/예약/기타로 분류 (조건 엣지)
+  - 도구 반복 루프: agent ⇄ tools 노드 (ToolNode + tools_condition, recursion_limit=10)
+  - 메모리: InMemorySaver 체크포인터로 학번별 대화 히스토리 저장
+
 ### **2부: 하나 AI 학원 웹사이트** (FastAPI + 바닐라 JS)
 ```
 정적 페이지 ← 마크다운 렌더링 ← RAG_PLAN.md
