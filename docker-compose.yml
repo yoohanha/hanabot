@@ -1,0 +1,28 @@
+# [5-6] 하나봇 Docker Compose
+# web 서버 + 에이전트 팀 (Ollama는 호스트 PC 사용)
+
+version: '3.8'
+
+services:
+  hanabot:
+    build: .
+    container_name: hanabot-app
+    ports:
+      - "8080:8080"
+    environment:
+      WEB_HOST: "0.0.0.0"
+      WEB_PORT: "8080"
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      CHAT_MODEL: "llama3.1"
+      EMBED_MODEL: "bge-m3"
+      LLM_BACKEND: "ollama"
+    volumes:
+      # 데이터 저장 (컨테이너가 꺼져도 유지)
+      - ./labs/5-5/data:/app/labs/5-5/data
+      - ./web/data:/app/web/data
+    networks:
+      - hanabot-net
+
+networks:
+  hanabot-net:
+    driver: bridge

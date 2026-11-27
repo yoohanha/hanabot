@@ -1,0 +1,126 @@
+# [5-6] 쿠버네티스 배포 설계도 (적용 금지 · 설계만)
+# 하나봇 3대 배포: 사용자가 늘면 replicas 숫자만 변경하면 됨
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hanabot-deployment
+  namespace: default
+  labels:
+    app: hanabot
+    version: "5-6"
+spec:
+  # [5-6] 초기 3대 배포 (사용자 많으면 여기 숫자만 늘림 → 자동 스케일)
+  replicas: 3
+
+  selector:
+    matchLabels:
+      app: hanabot
+
+  template:
+    metadata:
+      labels:
+        app: hanabot
+        version: "5-6"
+    spec:
+      containers:
+      # [5-6] 2교시 Docker 이미지 (1.49GB)
+      - name: hanabot-container
+        image: hanabot:5-6
+        imagePullPolicy: IfNotPresent
+
+        # [5-6] 웹 서버 포트 (FastAPI 8080)
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+
+        # [5-6] 환경 변수 (Ollama 호스트 연결)
+        env:
+        - name: WEB_HOST
+          value: "0.0.0.0"
+        - name: WEB_PORT
+          value: "8080"
+        - name: OLLAMA_BASE_URL
+          value: "http://ollama:11434"  # 같은 네트워크의 Ollama 서비스
+        - name: CHAT_MODEL
+          value: "llama3.1"
+        - name: EMBED_MODEL
+          value: "bge-m3"
+        - name: LLM_BACKEND
+          value: "ollama"
+
+        # [5-6] 리소스 제한 (메모리 2GB, CPU 1코어)
+        resources:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+
+        # [5-6] 헬스 체크 (컨테이너 정상 여부 감시)
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        # [5-6] 준비 상태 체크 (트래픽 받을 준비)
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+
+        # [5-6] 볼륨 마운트 (승인 대기 체크포인트 공용 저장소)
+        volumeMounts:
+        - name: checkpoints
+          mountPath: /app/labs/5-5/data
+          # [5-6] 여러 Pod이 같은 checkpoints.db를 공유하려면
+          #        ReadWriteMany 모드가 필요함 (NFS, EBS 등)
+
+      # [5-6] 공용 저장소 (여러 Pod이 동시에 접근 가능)
+      volumes:
+      - name: checkpoints
+        # [5-6] 실제 배포 시 선택:
+        # 1. NFS: persistentVolumeClaim
+        # 2. EBS/GCP Disk: persistentVolumeClaim
+        # 3. emptyDir (임시, Pod 삭제 시 사라짐 - 주의!)
+        emptyDir: {}
+        # 대신 아래 주석 처리된 것을 사용하려면 PVC 먼저 생성:
+        # persistentVolumeClaim:
+        #   claimName: hanabot-checkpoints-pvc
+
+---
+# [5-6] 수평 자동 스케일링 규칙 (선택사항)
+# 사용자가 늘면 자동으로 Pod 수 조정
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: hanabot-hpa
+  namespace: default
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: hanabot-deployment
+
+  # [5-6] 최소 3대, 최대 10대까지 자동 조정
+  minReplicas: 3
+  maxReplicas: 10
+
+  # [5-6] 스케일 기준: CPU 사용률 70% 초과 시 증설
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70

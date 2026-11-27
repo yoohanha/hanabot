@@ -13,6 +13,9 @@ langchain-ollama>=0.1.0
 langchain-text-splitters>=0.0.1
 chromadb>=0.4.0
 
+# Stage 5-6: 모델 팩토리 (OpenAI 호환)
+langchain-openai>=0.1.0
+
 # Stage 2-1: FastAPI 서버
 fastapi>=0.104.0
 uvicorn>=0.24.0
@@ -25,6 +28,9 @@ langchain-mcp-adapters>=0.3.0
 
 # Stage 5: LangGraph - Agentic AI
 langgraph>=1.2.24
+
+# Stage 5-5: Human in the Loop (승인 기능 · 체크포인트 저장)
+langgraph-checkpoint-sqlite>=0.1.0
 
 # 기타
 # pydantic>=2.0.0

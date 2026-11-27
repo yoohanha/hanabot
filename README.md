@@ -79,6 +79,12 @@
   - 홈페이지 연결: /api/agent · /api/agent/resume 엔드포인트
   - 팀 그래프 + 요청 수정 (edit/reject): 가드레일 재검사 후 실행
 
+- **5-6: 배포 준비 완료** (모델 서버 교체 · Docker · CI · K8s 설계도)
+  - Docker 이미지: 경량화 (.dockerignore로 불필요 파일 제외)
+  - CI/CD: GitHub Actions (pytest 가드레일 테스트)
+  - K8s 설계: Deployment (3대) + Service (LoadBalancer) + HPA (자동 스케일)
+  - 보안: 환경변수 분리, 개인정보(checkpoints.db) PersistentVolume 설계
+
 ### **2부: 하나 AI 학원 웹사이트** (FastAPI + 바닐라 JS)
 ```
 정적 페이지 ← 마크다운 렌더링 ← RAG_PLAN.md

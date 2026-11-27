@@ -1,0 +1,54 @@
+# [5-6] 쿠버네티스 서비스 설계도 (적용 금지 · 설계만)
+# 하나봇 3대 앞의 로드밸런서: 사용자 요청을 균등하게 분배
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: hanabot-service
+  namespace: default
+  labels:
+    app: hanabot
+    version: "5-6"
+spec:
+  # [5-6] 로드밸런서: 외부에서 접근 가능한 IP 하나를 받음
+  type: LoadBalancer
+
+  # [5-6] 트래픽 분배 정책 (기본: RoundRobin)
+  sessionAffinity: None
+
+  # [5-6] 선택 규칙 (Deployment의 Pod 찾기)
+  selector:
+    app: hanabot
+
+  # [5-6] 포트 매핑
+  ports:
+  - name: http
+    # [5-6] 외부 포트 (클라이언트가 접근): 80 (HTTP 기본)
+    port: 80
+    # [5-6] 내부 포트 (Pod 포트): 8080 (FastAPI)
+    targetPort: 8080
+    # [5-6] 프로토콜
+    protocol: TCP
+
+---
+# [5-6] 내부용 헤드리스 서비스 (선택사항)
+# Pod 간 직접 통신이 필요할 때 (예: 체크포인트 동기화)
+apiVersion: v1
+kind: Service
+metadata:
+  name: hanabot-internal
+  namespace: default
+  labels:
+    app: hanabot
+spec:
+  # [5-6] 헤드리스: 로드밸런싱 없이 Pod 이름으로 직접 접근 가능
+  clusterIP: None
+
+  selector:
+    app: hanabot
+
+  ports:
+  - name: internal
+    port: 8080
+    targetPort: 8080
+    protocol: TCP

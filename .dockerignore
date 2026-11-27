@@ -1,0 +1,65 @@
+# [5-6] Docker 빌드 제외 목록
+
+# 민감 정보
+.env
+.env.local
+
+# 가상환경 (너무 큼 · 모든 경로에서)
+**/.venv
+venv
+env
+
+# 테스트 데이터 (이미지에 포함 금지)
+labs/*/data
+labs/4-1/data
+labs/4-2/data
+labs/4-3/data
+labs/4-4/data
+labs/5-1/data
+labs/5-2/data
+labs/5-3/data
+labs/5-4/data
+labs/5-5/data
+labs/5-6/data
+
+# 사용자 메모리 (개인정보)
+memory
+memory.json
+checkpoints.db
+
+# 모델 파일 (매우 큼 · Ollama에서 호스트가 제공)
+models
+models/
+
+# 버전 관리
+.git
+.gitignore
+.gitattributes
+
+# Python 캐시 (모든 경로에서)
+**/__pycache__
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info
+dist
+build
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 문서
+*.md
+README.md
+
+# 기타
+.omc
+node_modules

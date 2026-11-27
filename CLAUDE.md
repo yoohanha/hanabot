@@ -257,6 +257,35 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "bge-m3")
   from labs.4_4.guard_check import check_safety, ...
   ```
 
+### 5-6: 배포 준비
+#### 파일 위치
+- **새 파일**: `labs/5-6/` 폴더 **안에만** 생성
+- **예외 허용**: `.github/workflows/` (CI/CD), `run_docker.bat` (배포 스크립트)
+
+#### 단계 표시
+- 새로 추가하거나 수정한 코드: `# [5-6]` 주석 필수
+
+#### 배포 설계 규칙
+- **K8s**: 설계도(YAML)만 작성 · `kubectl apply` 절대 금지
+- **Docker**: 이미지 빌드 설계만 (레지스트리 푸시 금지)
+- **제외 목록**: 다음은 이미지·커밋에 포함 금지
+  - `.env` (민감 정보)
+  - `.venv` (가상환경)
+  - `labs/*/data/` (테스트 데이터)
+  - `memory/` (사용자 메모리)
+  - `checkpoints.db` (모델 체크포인트)
+  - 이를 `.dockerignore` 파일에 명시
+
+#### 도구 재사용 (1~5부)
+- **금지**: 도구를 복사하기
+- **필수**: import로 가져와 사용
+  ```python
+  from labs.4_1.hana_tools import get_today, search_rules, ...
+  from labs.4_2.long_memory import load_memory, save_memory, ...
+  from labs.4_3.mcp_integration import run_mcp_tool, ...
+  from labs.4_4.guard_check import check_safety, ...
+  ```
+
 ## 📌 체크리스트
 단계를 마치기 전에 확인:
 - [ ] 코드에 모델/주소 하드코딩 없음
