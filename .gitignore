@@ -42,6 +42,11 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# AWS & Secrets
+*.pem
+*.key
+*.pub
+
 # Project-specific
 *.db
 *.sqlite

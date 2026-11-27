@@ -1,0 +1,55 @@
+# [5-7] AWS GPU 서버용 Docker Compose
+# 하나봇 웹 서버 + 에이전트 팀 (Ollama는 호스트 EC2에서 실행)
+
+version: '3.8'
+
+services:
+  # [5-7] 하나봇 웹 & 에이전트 컨테이너
+  hanabot:
+    # [5-7] 이미지 빌드 또는 기존 이미지 사용
+    build: .
+    # [5-7] 컨테이너 이름
+    container_name: hanabot-app
+    # [5-7] 포트 매핑 (외부 8080 → 내부 8080)
+    ports:
+      - "8080:8080"
+    # [5-7] 환경변수 (AWS 서버 환경)
+    environment:
+      # [5-7] 웹 서버 호스트 (0.0.0.0 으로 외부 접근 가능)
+      WEB_HOST: "0.0.0.0"
+      # [5-7] 웹 서버 포트
+      WEB_PORT: "8080"
+      # [5-7] Ollama 서버 주소 (localhost: 같은 EC2 인스턴스)
+      OLLAMA_BASE_URL: "http://host.docker.internal:11434"
+      # [5-7] 채팅 모델 (llama3.1)
+      CHAT_MODEL: "llama3.1"
+      # [5-7] 임베딩 모델 (bge-m3)
+      EMBED_MODEL: "bge-m3"
+      # [5-7] LLM 백엔드 (Ollama)
+      LLM_BACKEND: "ollama"
+    # [5-7] 호스트명 매핑 (Linux 에서 host.docker.internal 지원)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    # [5-7] 볼륨 마운트 (컨테이너 재시작 후에도 데이터 유지)
+    volumes:
+      # [5-7] Human in the Loop 체크포인트 저장
+      - ./labs/5-5/data:/app/labs/5-5/data
+      # [5-7] 웹 신청 데이터 (상담, 수강신청, 예약)
+      - ./web/data:/app/web/data
+    # [5-7] 컨테이너 네트워크
+    networks:
+      - hanabot-net
+    # [5-7] 재시작 정책 (EC2 재부팅 시에도 자동 재시작)
+    restart: unless-stopped
+    # [5-7] 로그 드라이버 설정 (대량 로그 방지)
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+# [5-7] Docker 네트워크 (컨테이너 간 통신)
+networks:
+  hanabot-net:
+    # [5-7] 네트워크 드라이버 (bridge)
+    driver: bridge

@@ -286,6 +286,46 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "bge-m3")
   from labs.4_4.guard_check import check_safety, ...
   ```
 
+### 5-7: AWS 준비
+#### 파일 위치
+- **새 파일**: `labs/5-7/` 폴더 **안에만** 생성
+- **데이터 저장**: `labs/5-7/` (배포 스크립트, 설정 파일)
+
+#### 단계 표시
+- 새로 추가하거나 수정한 코드: `# [5-7]` 주석 필수
+
+#### AWS CLI 정책
+- **파일만**: AWS 설정/배포 파일 작성 (Terraform, CloudFormation, 셸 스크립트 등)
+- **실행 금지**: `aws cli` 명령 절대 실행 금지 (콘솔 조작은 사람이)
+- **예시**: `terraform plan` 출력만 하고 `terraform apply` 금지
+
+#### 보안 & 비밀정보
+- **절대 금지**:
+  - AWS 키 (Access Key ID, Secret Access Key)
+  - `.pem` 파일 (EC2 Key Pair)
+  - `.env` 파일 (민감 정보)
+  - 비밀번호, 토큰, URL 등
+- **저장소에 추가**: `.gitignore`에 아래 항목 명시
+  ```
+  *.pem
+  *.key
+  *.pub
+  ```
+
+#### 데이터 정책
+- **허용**: 가상 학원 문서 (data/RAG_PLAN.md 등)만 AWS에 업로드
+- **금지**: 실제 회사 데이터, 직원 정보, 민감한 로그
+
+#### 도구 재사용 (1~6부)
+- **금지**: 도구를 복사하기
+- **필수**: import로 가져와 사용
+  ```python
+  from labs.4_1.hana_tools import get_today, search_rules, ...
+  from labs.4_2.long_memory import load_memory, save_memory, ...
+  from labs.4_3.mcp_integration import run_mcp_tool, ...
+  from labs.4_4.guard_check import check_safety, ...
+  ```
+
 ## 📌 체크리스트
 단계를 마치기 전에 확인:
 - [ ] 코드에 모델/주소 하드코딩 없음

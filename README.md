@@ -85,6 +85,12 @@
   - K8s 설계: Deployment (3대) + Service (LoadBalancer) + HPA (자동 스케일)
   - 보안: 환경변수 분리, 개인정보(checkpoints.db) PersistentVolume 설계
 
+- **5-7: AWS GPU 배포 준비** (배포 파일 · 보안 규칙 · 비용 계산)
+  - 배포 파일: EC2 초기화 스크립트, Docker Compose (AWS 환경)
+  - 보안: 보안 그룹 규칙 (SSH · 웹 = 내 IP만, Ollama = 차단)
+  - 비용 계산: 시간당 가격 입력 → 2시간/하루/한 달 비용 (원화)
+  - 체크리스트: AWS 종료 절차 (백업 · 중지 · 비용 정리)
+
 ### **2부: 하나 AI 학원 웹사이트** (FastAPI + 바닐라 JS)
 ```
 정적 페이지 ← 마크다운 렌더링 ← RAG_PLAN.md
