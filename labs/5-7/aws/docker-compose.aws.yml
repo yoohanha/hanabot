@@ -1,6 +1,6 @@
 # [5-7] AWS GPU 서버용 Docker Compose 오버라이드
 # 기본 docker-compose.yml 에 덮어씌우는 설정만 포함
-# 사용법: docker compose -f docker-compose.yml -f docker-compose.aws.yml up -d
+# 사용법: docker compose -f docker-compose.yml -f labs/5-7/aws/docker-compose.aws.yml up -d
 
 version: '3.8'
 

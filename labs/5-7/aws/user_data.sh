@@ -26,16 +26,24 @@ apt-get upgrade -y || error_exit "패키지 업그레이드 실패"
 log_msg "2단계: Git 설치"
 apt-get install -y git curl wget || error_exit "Git 설치 실패"
 
-# [5-7] Docker & Docker Compose 설치
-log_msg "3단계: Docker 설치"
-apt-get install -y docker.io || error_exit "Docker 설치 실패"
-systemctl start docker
-systemctl enable docker
+# [5-7] Docker 설치 확인 · 필요 시 설치
+log_msg "3단계: Docker 설치 (필요 시)"
+if command -v docker &> /dev/null; then
+    log_msg "  Docker 이미 설치됨"
+else
+    log_msg "  Docker 설치 중..."
+    curl -fsSL https://get.docker.com | sh || error_exit "Docker 설치 실패"
+fi
+systemctl start docker || error_exit "Docker 시작 실패"
+systemctl enable docker || error_exit "Docker 자동시작 활성화 실패"
 
-# [5-7] Docker Compose 설치 (최신 버전)
-log_msg "4단계: Docker Compose 설치"
-curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose || error_exit "Docker Compose 다운로드 실패"
-chmod +x /usr/local/bin/docker-compose
+# [5-7] Docker Compose 플러그인 확인
+log_msg "4단계: Docker Compose 플러그인 확인"
+if docker compose version &> /dev/null; then
+    log_msg "  Docker Compose 플러그인 이미 설치됨"
+else
+    error_exit "Docker Compose 플러그인 없음 (Docker 20.10+ 필요)"
+fi
 
 # [5-7] Ollama 설치 (공식 스크립트)
 log_msg "5단계: Ollama 설치"
