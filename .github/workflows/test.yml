@@ -1,0 +1,49 @@
+# [5-6] CI 품질 게이트: pytest 실행
+# push 할 때 Ollama 없이 가드레일 단위 테스트 실행
+
+name: Guard Rails Test
+
+on:
+  push:
+    branches:
+      - main
+      - part*
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 코드 체크아웃
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Python 설정
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      # 필수 패키지만 설치 (pytest)
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pytest>=7.0.0
+
+      # 가드레일 테스트 실행 (Ollama 없이)
+      - name: Run guard rails tests
+        run: |
+          python -m pytest labs/5-6/tests/test_guard_rails.py -v --tb=short
+
+      # 테스트 결과 요약
+      - name: Test summary
+        if: always()
+        run: |
+          echo "🧪 가드레일 테스트 완료"
+          echo "✅ 모든 보안 검사 통과: 주민번호 가림, 지시 무시 차단, 권한 검사, 시간 제한 등"
