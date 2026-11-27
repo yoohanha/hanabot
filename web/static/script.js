@@ -26,21 +26,8 @@ function initializeChatUI() {
     </div>
   `;
 
-  // 떠 있는 버튼 생성
-  const floatingButtonsHtml = `
-    <div class="floating-buttons">
-      <button class="float-btn main-btn" id="floatHanabot" title="하나봇에게 묻기">
-        <img src="assets/mark.png" alt="하나봇">
-      </button>
-      <button class="float-btn" id="floatConsult" title="상담 신청">📞</button>
-      <button class="float-btn" id="floatFaq" title="FAQ">❓</button>
-      <button class="float-btn" id="floatTop" title="맨 위로">⬆️</button>
-    </div>
-  `;
-
-  // HTML 추가
+  // HTML 추가 (floating buttons는 index.html에 이미 존재)
   document.body.insertAdjacentHTML('beforeend', chatModalHtml);
-  document.body.insertAdjacentHTML('beforeend', floatingButtonsHtml);
 
   // [3-3] 저장된 채팅 내용 복구
   loadChatHistory();
@@ -322,7 +309,7 @@ function initializeSlider() {
 
   pauseBtn.addEventListener('click', function() {
     isPlaying = !isPlaying;
-    pauseBtn.textContent = isPlaying ? '⏸ 일시정지' : '▶ 재생';
+    pauseBtn.textContent = isPlaying ? '일시정지' : '재생';
     pauseBtn.classList.toggle('playing');
 
     if (isPlaying) {
@@ -381,31 +368,7 @@ function initializeTabs() {
 
 // [2-1] 떠 있는 버튼
 function initializeFloatingButtons() {
-  const floatHanabot = document.getElementById('floatHanabot');
-  const floatConsult = document.getElementById('floatConsult');
-  const floatFaq = document.getElementById('floatFaq');
-  const floatTop = document.getElementById('floatTop');
-
   // [3-3] floatHanabot은 initializeChat에서 처리
-
-  if (floatConsult) {
-    floatConsult.addEventListener('click', function() {
-      window.location.href = 'page.html?id=상담신청';
-    });
-  }
-
-  if (floatFaq) {
-    floatFaq.addEventListener('click', function() {
-      document.querySelector('.tab-btn[data-tab="faq"]').click();
-      document.getElementById('schedule-section').scrollIntoView({ behavior: 'smooth' });
-    });
-  }
-
-  if (floatTop) {
-    floatTop.addEventListener('click', function() {
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    });
-  }
 
   // 스크롤 시 떠 있는 버튼 표시/숨김
   window.addEventListener('scroll', function() {

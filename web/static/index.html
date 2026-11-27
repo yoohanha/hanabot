@@ -37,11 +37,11 @@
     <div class="container header-content">
       <!-- 로고 -->
       <div class="logo">
-        <img src="assets/logo.png" alt="하나 AI 학원">
+        <img src="assets/logo.png" alt="하나 AI 학원" width="150" height="40">
       </div>
 
       <!-- 햄버거 버튼 (모바일) -->
-      <button class="hamburger" id="hamburger">
+      <button class="hamburger" id="hamburger" aria-label="메뉴 열기">
         <span></span>
         <span></span>
         <span></span>
@@ -108,8 +108,8 @@
 
       <!-- 오른쪽 버튼들 -->
       <div class="header-right">
-        <button class="btn btn-primary btn-hanabot">🤖 하나봇에게 묻기</button>
-        <button class="btn btn-login">로그인</button>
+        <button class="btn btn-primary btn-hanabot">하나봇에게 묻기</button>
+        <button class="btn btn-login" aria-label="로그인">로그인</button>
       </div>
     </div>
   </header>
@@ -140,17 +140,17 @@
 
         <!-- 슬라이드 컨트롤 -->
         <div class="slider-controls">
-          <button class="slider-btn prev" id="sliderPrev">‹</button>
+          <button class="slider-btn prev" id="sliderPrev" aria-label="이전 슬라이드">‹</button>
           <span class="slide-counter"><span id="currentSlide">1</span> / 3</span>
-          <button class="slider-btn next" id="sliderNext">›</button>
-          <button class="slider-pause" id="sliderPause">⏸ 일시정지</button>
+          <button class="slider-btn next" id="sliderNext" aria-label="다음 슬라이드">›</button>
+          <button class="slider-pause" id="sliderPause">일시정지</button>
         </div>
       </div>
 
       <!-- 오른쪽: 오늘의 수업 카드 -->
       <div class="hero-card">
         <div class="card">
-          <h3>📅 오늘의 수업</h3>
+          <h3>오늘의 수업</h3>
           <div id="todayClass" class="today-class">
             <!-- JS에서 채워짐 -->
           </div>
@@ -165,27 +165,21 @@
     <div class="container">
       <div class="quick-menu-grid">
         <a href="page.html?id=시간표" class="quick-card">
-          <div class="quick-icon">📅</div>
           <div class="quick-text">시간표</div>
         </a>
         <a href="page.html?id=수강신청" class="quick-card">
-          <div class="quick-icon">✏️</div>
           <div class="quick-text">수강 신청</div>
         </a>
         <a href="page.html?id=출석" class="quick-card">
-          <div class="quick-icon">✅</div>
           <div class="quick-text">출석 규정</div>
         </a>
         <a href="page.html?id=수강료" class="quick-card">
-          <div class="quick-icon">💰</div>
           <div class="quick-text">수강료·환불</div>
         </a>
         <a href="page.html?id=GPU예약" class="quick-card">
-          <div class="quick-icon">🖥️</div>
           <div class="quick-text">GPU PC 예약</div>
         </a>
         <a href="page.html?id=하나봇" class="quick-card">
-          <div class="quick-icon">🤖</div>
           <div class="quick-text">하나봇 문의</div>
         </a>
       </div>
@@ -321,7 +315,7 @@
   <footer id="footer" class="footer">
     <div class="container footer-content">
       <div class="footer-logo">
-        <img src="assets/mark.png" alt="하나 AI 학원" class="footer-mark">
+        <img src="assets/mark.png" alt="하나 AI 학원" class="footer-mark" width="48" height="48">
       </div>
 
       <div class="footer-info">
@@ -347,7 +341,7 @@
       <!-- 헤더 -->
       <div class="chat-header">
         <div class="chat-title-box">
-          <img src="assets/mark.png" alt="하나봇" class="chat-icon">
+          <img src="assets/mark.png" alt="하나봇" class="chat-icon" width="32" height="32">
           <span class="chat-title">하나봇</span>
         </div>
         <button class="chat-close" id="chatClose">✕</button>
@@ -376,12 +370,9 @@
 
   <!-- 떠 있는 버튼 (오른쪽 아래) -->
   <div class="floating-buttons">
-    <button class="float-btn main-btn" id="floatHanabot" title="하나봇에게 묻기">
-      <img src="assets/mark.png" alt="하나봇">
+    <button class="float-btn main-btn" id="floatHanabot" aria-label="하나봇에게 묻기">
+      <img src="assets/mark.png" alt="하나봇" width="28" height="28">
     </button>
-    <button class="float-btn" id="floatConsult" title="상담 신청">📞</button>
-    <button class="float-btn" id="floatFaq" title="FAQ">❓</button>
-    <button class="float-btn" id="floatTop" title="맨 위로">⬆️</button>
   </div>
 
   <!-- 스크립트 -->
