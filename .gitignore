@@ -64,3 +64,15 @@ web/data/*.json
 # 프로젝트 임시 파일
 test_langfuse.py
 MCP 설치순서.txt
+
+# [5-5] 실행할 때마다 바뀌는 파일 (예약 · 가드 기록 · 체크포인트)
+labs/4-1/data/
+labs/4-4/data/guard_log.json
+labs/5-5/data/
+*.db-shm
+*.db-wal
+
+# 디자인 도구 설정 (impeccable · shadcn MCP)
+.impeccable/
+PRODUCT.md
+.mcp.json
