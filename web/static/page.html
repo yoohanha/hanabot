@@ -1130,7 +1130,7 @@
             <tbody>`;
 
         data.courses.forEach((course, idx) => {
-          html += `<tr style="border: 1px solid var(--color-border); ${idx % 2 === 1 ? 'background-color: #f9f9f9;' : ''}">
+          html += `<tr style="border: 1px solid var(--color-border); ${idx % 2 === 1 ? 'background-color: var(--color-bg);' : ''}">
             <td style="padding: 12px; text-align: center; border: 1px solid var(--color-border); font-weight: bold;">${idx + 1}</td>
             <td style="padding: 12px; border: 1px solid var(--color-border);"><strong>${course.emoji} ${course.name}</strong></td>
             <td style="padding: 12px; border: 1px solid var(--color-border);">${course.desc}</td>

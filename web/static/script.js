@@ -432,6 +432,38 @@ function initializeChat() {
     }
   });
 
+  // [5-5] 에이전트 메시지 전송
+  async function sendAgentMessage(question, studentId) {
+    const chatMessages = document.getElementById('chatMessages');
+    const chatInput = document.getElementById('chatInput');
+    const approvalCard = document.getElementById('approvalCard');
+
+    // 메시지 표시
+    const msgDiv = document.createElement('div');
+    msgDiv.className = 'chat-message user';
+    msgDiv.innerHTML = `<div class="message-content">${escapeHtml(question)}</div>`;
+    chatMessages.appendChild(msgDiv);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    chatInput.value = '';
+
+    // [5-5] 기다리는 동안 표시 (모델 호출이 20초 이상 걸릴 수 있음)
+    const thinking = window.agentBubble('🤔 에이전트 팀이 일하는 중... (20초 이상 걸릴 수 있어요)');
+    try {
+      const res = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question, student_id: studentId })
+      });
+      const data = await res.json();
+      thinking.remove();
+      window.agentThreadId = data.thread_id;
+      window.renderAgentResult(data, studentId);
+    } catch (err) {
+      thinking.remove();
+      window.agentBubble(`❌ 오류: ${err.message}`);
+    }
+  }
+
   // [3-1] 메시지 전송 (한글 입력 문제 해결)
   let isSending = false;
   async function sendMessage() {
@@ -442,6 +474,20 @@ function initializeChat() {
     if (!message) return;
 
     isSending = true;
+
+    // [5-5] 에이전트 모드 체크 (window 에서 agentMode 확인)
+    if (window.agentMode) {
+      const studentId = document.getElementById('studentId')?.value.trim();
+      if (!studentId) {
+        alert('학번을 입력하세요.');
+        isSending = false;
+        return;
+      }
+      // 에이전트 모드 → /api/agent 호출
+      await sendAgentMessage(message, studentId);
+      isSending = false;
+      return;
+    }
 
     // 사용자 메시지 표시
     const userDiv = document.createElement('div');
@@ -572,38 +618,140 @@ function loadPageData() {
 // [5-5] 에이전트 모드 로직
 // ============================================================================
 
+// [5-5] 전역 변수 (에이전트 모드, thread ID)
+window.agentMode = false;
+window.agentThreadId = null;
+
+// [5-5] 채팅창에 하나봇 말풍선 하나 추가 (돌려줘서 나중에 지울 수 있게)
+window.agentBubble = function(text) {
+  const chatMessages = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-message bot';
+  div.innerHTML = `<div class="message-content" style="white-space: pre-line;">${escapeHtml(text)}</div>`;
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  return div;
+};
+
+// [5-5] 서버 응답 처리: 멈춤이면 승인 카드 · 끝이면 답 · 오류면 오류 (조용히 멈춘 것처럼 보이지 않게)
+window.renderAgentResult = function(data, studentId) {
+  if (data.error) {
+    window.agentBubble(`❌ 오류: ${data.error}`);
+  } else if (data.status === 'approval_pending') {
+    if (data.note) window.agentBubble(data.note);
+    window.showApprovalCard(data, studentId);
+  } else {
+    window.agentBubble(data.final_answer || '응답이 비어 있어요');
+  }
+};
+
+// [5-5] 승인 카드 표시 (전역 함수)
+window.showApprovalCard = function(data, studentId) {
+  const approvalCard = document.getElementById('approvalCard');
+  const approvalAccept = document.getElementById('approvalAccept');
+  const approvalReject = document.getElementById('approvalReject');
+  const approvalEdit = document.getElementById('approvalEdit');
+  const approvalDetails = document.getElementById('approvalDetails');
+  const isCancel = data.type === 'cancellation';
+
+  approvalCard.querySelector('div').textContent = isCancel ? '📋 예약 취소 승인 대기' : '📋 예약 승인 대기';
+  approvalDetails.innerHTML = `
+    ${isCancel ? `🔖 예약 번호: ${escapeHtml(data.reserve_id || '')}<br>` : ''}
+    📅 날짜: ${escapeHtml(String(data.date || 'N/A'))}<br>
+    🕐 시작: ${escapeHtml(String(data.start_time || 'N/A'))}<br>
+    ⏱️ 이용: ${escapeHtml(String(data.duration || 'N/A'))}시간<br>
+    🖥️ PC: ${escapeHtml(String(data.pc_number || 'N/A'))}번<br>
+    👤 학번: ${escapeHtml(String(data.student_id || studentId))}
+  `;
+  approvalCard.style.display = 'block';
+  approvalCard.scrollIntoView({ block: 'nearest' });
+
+  // [5-5] 버튼은 한 번만 눌리게: 누르면 카드를 숨기고 버튼 연결을 끊음
+  const handleApproval = async (response) => {
+    approvalCard.style.display = 'none';
+    approvalAccept.onclick = approvalReject.onclick = approvalEdit.onclick = null;
+    const thinking = window.agentBubble(`⏳ "${response}" 처리 중...`);
+    try {
+      const res = await fetch('/api/agent/resume', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: window.agentThreadId, response })
+      });
+      const result = await res.json();
+      thinking.remove();
+      window.renderAgentResult(result, studentId);   // 수정이면 새 카드가 다시 뜸
+    } catch (err) {
+      thinking.remove();
+      window.agentBubble(`❌ 오류: ${err.message}`);
+    }
+  };
+
+  approvalAccept.onclick = () => handleApproval('y');
+  approvalReject.onclick = () => handleApproval('n');
+  approvalEdit.onclick = () => {
+    const editText = prompt('수정 내용 (예: 3시로, PC 2번으로, 6시간으로):');
+    if (editText) handleApproval(editText);
+  };
+};
+
+// [5-5] 에이전트 메시지 전송 (전역 함수)
+async function sendAgentMessage(question, studentId) {
+  const chatMessages = document.getElementById('chatMessages');
+  const chatInput = document.getElementById('chatInput');
+
+  // 메시지 표시
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'chat-message user';
+  msgDiv.innerHTML = `<div class="message-content">${escapeHtml(question)}</div>`;
+  chatMessages.appendChild(msgDiv);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+  chatInput.value = '';
+
+  try {
+    const res = await fetch('/api/agent', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ question, student_id: studentId })
+    });
+
+    const data = await res.json();
+    window.agentThreadId = data.thread_id;
+
+    // 에이전트 응답 표시
+    if (data.final_answer) {
+      const botMsg = document.createElement('div');
+      botMsg.className = 'chat-message bot';
+      botMsg.innerHTML = `<div class="message-content">${escapeHtml(data.final_answer)}</div>`;
+      chatMessages.appendChild(botMsg);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    // Interrupt 감지: status="approval_pending" 반환 시 승인 카드 표시
+    if (data.status === 'approval_pending') {
+      window.showApprovalCard(data, studentId);
+    }
+  } catch (err) {
+    const errMsg = document.createElement('div');
+    errMsg.className = 'chat-message bot';
+    errMsg.innerHTML = `<div class="message-content">❌ 오류: ${escapeHtml(err.message)}</div>`;
+    chatMessages.appendChild(errMsg);
+  }
+}
+
 (function initAgentMode() {
   const agentModeBar = document.getElementById('agentModeBar');
   const agentModeToggle = document.getElementById('agentModeToggle');
   const studentIdInput = document.getElementById('studentIdInput');
   const studentId = document.getElementById('studentId');
   const approvalCard = document.getElementById('approvalCard');
-  const approvalAccept = document.getElementById('approvalAccept');
-  const approvalReject = document.getElementById('approvalReject');
-  const approvalEdit = document.getElementById('approvalEdit');
-  const chatInput = document.getElementById('chatInput');
-  const chatMessages = document.getElementById('chatMessages');
 
-  let currentThreadId = null;
-  let agentMode = false;
-
-  // 메뉴 7번 클릭 시 에이전트 모드 바 표시
-  const pageContent = document.querySelector('.page-content');
-  const observer = new MutationObserver(() => {
-    const pageId = document.body.getAttribute('data-page-id');
-    if (pageId === '하나봇') {
-      agentModeBar.style.display = 'block';
-    } else {
-      agentModeBar.style.display = 'none';
-    }
-  });
-
-  observer.observe(document.body, { attributes: true, attributeFilter: ['data-page-id'] });
+  // [5-5] 모든 페이지에서 에이전트 모드 바 표시
+  agentModeBar.style.display = 'block';
 
   // [5-5] 에이전트 모드 토글
   agentModeToggle.addEventListener('change', () => {
-    agentMode = agentModeToggle.checked;
-    if (agentMode) {
+    window.agentMode = agentModeToggle.checked;
+    if (window.agentMode) {
       studentIdInput.style.display = 'block';
       studentId.focus();
     } else {
@@ -611,108 +759,6 @@ function loadPageData() {
       approvalCard.style.display = 'none';
     }
   });
-
-  // [5-5] 메시지 전송 오버라이드
-  const originalSendMessage = window.sendMessage;
-  window.sendMessage = async () => {
-    if (!agentMode) {
-      originalSendMessage();
-      return;
-    }
-
-    const question = chatInput.value.trim();
-    if (!question) return;
-
-    const sid = studentId.value.trim() || 'HANA-001';
-    if (!sid) {
-      alert('학번을 입력하세요.');
-      return;
-    }
-
-    // [5-5] 메시지 표시
-    const msgDiv = document.createElement('div');
-    msgDiv.className = 'chat-message user';
-    msgDiv.innerHTML = `<div class="message-content">${escapeHtml(question)}</div>`;
-    chatMessages.appendChild(msgDiv);
-    chatMessages.scrollTop = chatMessages.scrollHeight;
-    chatInput.value = '';
-
-    // [5-5] /api/agent 호출
-    try {
-      const res = await fetch('/api/agent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, student_id: sid })
-      });
-
-      const data = await res.json();
-      currentThreadId = data.thread_id;
-
-      // [5-5] 에이전트 응답 표시
-      if (data.final_answer) {
-        const botMsg = document.createElement('div');
-        botMsg.className = 'chat-message bot';
-        botMsg.innerHTML = `<div class="message-content">${escapeHtml(data.final_answer)}</div>`;
-        chatMessages.appendChild(botMsg);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-      }
-
-      // [5-5] Interrupt 감지: approval_data 반환 시 승인 카드 표시
-      if (data.type === 'reservation' || data.type === 'cancellation') {
-        showApprovalCard(data, sid);
-      }
-    } catch (err) {
-      const errMsg = document.createElement('div');
-      errMsg.className = 'chat-message bot';
-      errMsg.innerHTML = `<div class="message-content">❌ 오류: ${escapeHtml(err.message)}</div>`;
-      chatMessages.appendChild(errMsg);
-    }
-  };
-
-  // [5-5] 승인 카드 표시
-  function showApprovalCard(data, sid) {
-    const details = document.getElementById('approvalDetails');
-    details.innerHTML = `
-      📅 날짜: ${data.date || 'N/A'}<br>
-      🕐 시간: ${data.start_time || 'N/A'}<br>
-      ⏱️ 시간: ${data.duration || 'N/A'}시간<br>
-      🖥️ PC: ${data.pc_number || 'N/A'}번<br>
-      👤 학번: ${sid}
-    `;
-    approvalCard.style.display = 'block';
-
-    // [5-5] 버튼 처리 (한 번만 눌리게)
-    const handleApproval = async (response) => {
-      approvalCard.style.display = 'none';
-
-      try {
-        const res = await fetch('/api/agent/resume', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ thread_id: currentThreadId, response })
-        });
-
-        const result = await res.json();
-        const botMsg = document.createElement('div');
-        botMsg.className = 'chat-message bot';
-        botMsg.innerHTML = `<div class="message-content">${escapeHtml(result.final_answer || result.status)}</div>`;
-        chatMessages.appendChild(botMsg);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
-      } catch (err) {
-        const errMsg = document.createElement('div');
-        errMsg.className = 'chat-message bot';
-        errMsg.innerHTML = `<div class="message-content">❌ 오류: ${escapeHtml(err.message)}</div>`;
-        chatMessages.appendChild(errMsg);
-      }
-    };
-
-    approvalAccept.onclick = () => handleApproval('y');
-    approvalReject.onclick = () => handleApproval('n');
-    approvalEdit.onclick = () => {
-      const editText = prompt('수정 내용 (예: 3시로, PC 2번으로, 6시간으로):');
-      if (editText) handleApproval(editText);
-    };
-  }
 })();
 
 // 스크롤 감지

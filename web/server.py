@@ -448,95 +448,84 @@ async def root():
     return FileResponse(WEB_STATIC / 'index.html')
 
 
-# [5-5] 에이전트 엔드포인트
-sys.path.insert(0, str(PROJECT_ROOT / 'labs' / '5-3'))
+# [5-5] 에이전트 엔드포인트 (labs/5-5/hitl_graph 그래프 · interrupt 로 멈추고 버튼으로 이어가기)
 sys.path.insert(0, str(PROJECT_ROOT / 'labs' / '5-5'))
+sys.path.insert(0, str(PROJECT_ROOT / 'labs' / '4-4'))
 
 try:
-    from team_graph import TeamState
-    from langgraph.checkpoint.sqlite import SqliteSaver
-    from pathlib import Path as PathlibPath
+    from langgraph.types import Command
+    from hitl_graph import create_hitl_graph, open_checkpointer, initial_state
+    from guard_input import InputGuard
 
-    AGENT_DATA_DIR = PROJECT_ROOT / 'labs' / '5-5' / 'data'
-    AGENT_DATA_DIR.mkdir(parents=True, exist_ok=True)
-    agent_checkpointer = SqliteSaver(str(AGENT_DATA_DIR / 'checkpoints.db'))
-
-    # team_graph import (지연 로드)
-    from team_graph import supervisor_node, rules_node, fee_node, booking_node, finish_node
-    from langgraph.graph import StateGraph, START, END
-
+    # [5-5] 그래프는 한 번만 만들고 재사용 · 체크포인터는 파일(sqlite)에 저장
+    agent_app = create_hitl_graph().compile(checkpointer=open_checkpointer())
+    input_guard = InputGuard()
     AGENT_AVAILABLE = True
 except Exception as e:
     AGENT_AVAILABLE = False
     print(f'⚠️ 에이전트 로드 실패: {e}')
 
 
+def agent_reply(result: dict, thread_id: str, note: str = '') -> dict:
+    """[5-5] 그래프 결과 → 화면 응답. 멈춤은 예외가 아니라 결과의 '__interrupt__' 로 알 수 있음"""
+    if '__interrupt__' in result:
+        card = result['__interrupt__'][0].value
+        return {'status': 'approval_pending', 'thread_id': thread_id, 'note': note, **card}
+    answer = result.get('final_answer') or '응답이 비어 있어요 (그래프가 답을 만들지 못함)'
+    if note:
+        answer = f'{note}\n\n{answer}'
+    return {'status': 'completed', 'thread_id': thread_id, 'final_answer': answer}
+
+
 @app.post('/api/agent')
 async def api_agent(request_body: dict):
-    """[5-5] 에이전트로 질문 처리"""
+    """[5-5] 질문 → 입력 가드 → 팀 그래프 실행 (예약 · 취소면 승인 카드 정보로 멈춤)"""
     if not AGENT_AVAILABLE:
         return JSONResponse({'error': '에이전트 미지원'}, status_code=400)
 
-    question = request_body.get('question', '')
-    student_id = request_body.get('student_id', 'HANA-001')
-
+    question = request_body.get('question', '').strip()
+    student_id = request_body.get('student_id', 'HANA-001').strip().upper()
     if not question:
         return JSONResponse({'error': '질문 필수'}, status_code=400)
 
+    # [5-5] 입력 가드 (4-4): 지시 무시 · 범위 밖 · 도구 악용은 차단, 개인정보는 가리고 진행
+    question, passed, guard_msg = input_guard.guard(question)
+    if not passed:
+        return {'status': 'completed', 'thread_id': '', 'final_answer': f'🛡️ {guard_msg}'}
+
+    thread_id = f'{student_id}-{int(time.time())}'
+    config = {'configurable': {'thread_id': thread_id}}
     try:
-        # 그래프 생성
-        graph = StateGraph(TeamState)
-        graph.add_node("supervisor", supervisor_node)
-        graph.add_node("rules", rules_node)
-        graph.add_node("fee", fee_node)
-        graph.add_node("booking", booking_node)
-        graph.add_node("finish", finish_node)
-
-        graph.add_edge(START, "supervisor")
-        graph.add_conditional_edges("supervisor", lambda s: "rules" if s.get("next_worker") == "RULES" else "fee" if s.get("next_worker") == "FEE" else "booking" if s.get("next_worker") == "BOOKING" else "finish")
-        graph.add_edge("rules", "supervisor")
-        graph.add_edge("fee", "supervisor")
-        graph.add_edge("booking", "supervisor")
-        graph.add_edge("finish", END)
-
-        compiled = graph.compile(checkpointer=agent_checkpointer)
-
-        # 초기 상태
-        state = {"question": question, "messages": [], "remaining_requests": [], "next_worker": "RULES", "worker_responses": [], "call_count": 0, "final_answer": ""}
-        thread_id = f"{student_id}-{int(time.time())}"
-
-        # 그래프 실행 (단일 단계)
-        result = compiled.invoke(state, config={"configurable": {"thread_id": thread_id}})
-
-        return JSONResponse({
-            "thread_id": thread_id,
-            "status": "processing",
-            "question": question,
-            "worker": result.get("next_worker"),
-            "final_answer": result.get("final_answer", "")
-        })
+        # [5-5] 모델 호출이 오래 걸리므로 스레드에서 실행 (그동안 다른 채팅이 멈추지 않게)
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            executor, lambda: agent_app.invoke(initial_state(question, student_id), config))
+        return agent_reply(result, thread_id, guard_msg)
     except Exception as e:
-        return JSONResponse({"error": str(e)}, status_code=500)
+        return JSONResponse({'error': str(e), 'thread_id': thread_id}, status_code=500)
 
 
 @app.post('/api/agent/resume')
 async def api_agent_resume(request_body: dict):
-    """[5-5] 에이전트 재개 (승인)"""
+    """[5-5] [승인] y · [거절] n · [수정] 내용 → Command(resume=...) 로 같은 그래프를 이어서 실행"""
     if not AGENT_AVAILABLE:
         return JSONResponse({'error': '에이전트 미지원'}, status_code=400)
 
     thread_id = request_body.get('thread_id', '')
-    response = request_body.get('response', 'y')  # y/n
+    response = str(request_body.get('response', '')).strip()
+    if not thread_id or not response:
+        return JSONResponse({'error': 'thread_id · response 필수'}, status_code=400)
 
-    if not thread_id:
-        return JSONResponse({'error': 'thread_id 필수'}, status_code=400)
-
-    return JSONResponse({
-        "thread_id": thread_id,
-        "response": response,
-        "status": "resumed",
-        "final_answer": "✅ 완료" if response == "y" else "❌ 거절됨"
-    })
+    config = {'configurable': {'thread_id': thread_id}}
+    if not agent_app.get_state(config).next:
+        return {'status': 'completed', 'thread_id': thread_id, 'final_answer': '이미 끝난 요청이에요'}
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(
+            executor, lambda: agent_app.invoke(Command(resume=response), config))
+        return agent_reply(result, thread_id)    # 수정이면 다시 멈춰서 새 카드가 옴
+    except Exception as e:
+        return JSONResponse({'error': str(e), 'thread_id': thread_id}, status_code=500)
 
 
 @app.get('/page.html')
