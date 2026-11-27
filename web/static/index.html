@@ -347,6 +347,28 @@
         <button class="chat-close" id="chatClose">✕</button>
       </div>
 
+      <!-- [5-5] 에이전트 모드 토글 -->
+      <div class="agent-mode-bar" id="agentModeBar" style="display: none; border-bottom: 1px solid #e0e0e0; padding: 8px 12px; background: #f9f9f9; font-size: 13px;">
+        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; margin-bottom: 6px;">
+          <input type="checkbox" id="agentModeToggle" style="cursor: pointer;">
+          <span style="color: #666;">🤖 에이전트 모드</span>
+        </label>
+        <div id="studentIdInput" style="display: none; margin-top: 6px;">
+          <input type="text" id="studentId" placeholder="학번 입력 (예: HANA-001)" style="width: 100%; padding: 4px 8px; font-size: 12px; border: 1px solid #ccc; border-radius: 3px;">
+        </div>
+      </div>
+
+      <!-- [5-5] 승인 카드 -->
+      <div id="approvalCard" style="display: none; border: 1px solid #ddd; border-radius: 6px; padding: 12px; margin: 8px 12px; background: #f0f8ff;">
+        <div style="font-weight: bold; margin-bottom: 8px; color: #333;">📋 예약 승인 대기</div>
+        <div id="approvalDetails" style="font-size: 12px; color: #666; margin-bottom: 10px; line-height: 1.6;"></div>
+        <div style="display: flex; gap: 6px; justify-content: space-between;">
+          <button id="approvalAccept" class="approval-btn" style="flex: 1; padding: 6px; background: #4CAF50; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">✓ 승인</button>
+          <button id="approvalReject" class="approval-btn" style="flex: 1; padding: 6px; background: #f44336; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">✗ 거절</button>
+          <button id="approvalEdit" class="approval-btn" style="flex: 1; padding: 6px; background: #2196F3; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 12px;">✎ 수정</button>
+        </div>
+      </div>
+
       <!-- 대화 영역 -->
       <div class="chat-messages" id="chatMessages">
         <div class="chat-message bot">
