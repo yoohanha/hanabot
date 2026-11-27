@@ -256,7 +256,7 @@ function initializeSlider() {
   const currentSlideSpan = document.getElementById('currentSlide');
 
   let currentSlide = 1;
-  let totalSlides = 3;
+  let totalSlides = slider ? slider.children.length : 3;  // [디자인] 슬라이드 수를 자동으로 셈
   let isPlaying = true;
   let autoPlayInterval;
 

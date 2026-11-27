@@ -11,7 +11,7 @@
   <link rel="apple-touch-icon" href="assets/mark.png">
 
   <!-- 스타일 -->
-  <link rel="stylesheet" href="style.css?v=20261127-3">
+  <link rel="stylesheet" href="style.css?v=20261127-5">
 </head>
 <body>
   <!-- 얇은 띠 (운영 안내) -->
@@ -123,6 +123,10 @@
       <div class="hero-slider">
         <div class="slider-container">
           <div class="slider" id="slider">
+            <!-- [디자인] 브랜드 이미지 슬라이드 -->
+            <div class="slide slide-image" data-slide="0">
+              <img src="assets/main.png?v=20261127-2" alt="HANA AI College · 마음으로 틔우는 인공지능의 싹">
+            </div>
             <div class="slide" data-slide="1">
               <h1>내 PC에서 돌아가는<br>나만의 AI</h1>
               <a href="page.html?id=기초반" class="btn btn-primary">과정 보기</a>
@@ -141,7 +145,7 @@
         <!-- 슬라이드 컨트롤 -->
         <div class="slider-controls">
           <button class="slider-btn prev" id="sliderPrev" aria-label="이전 슬라이드">‹</button>
-          <span class="slide-counter"><span id="currentSlide">1</span> / 3</span>
+          <span class="slide-counter"><span id="currentSlide">1</span> / <span id="totalSlides">4</span></span>
           <button class="slider-btn next" id="sliderNext" aria-label="다음 슬라이드">›</button>
           <button class="slider-pause" id="sliderPause">일시정지</button>
         </div>
@@ -398,6 +402,6 @@
   </div>
 
   <!-- 스크립트 -->
-  <script src="script.js"></script>
+  <script src="script.js?v=20261127"></script>
 </body>
 </html>
