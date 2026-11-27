@@ -448,6 +448,97 @@ async def root():
     return FileResponse(WEB_STATIC / 'index.html')
 
 
+# [5-5] 에이전트 엔드포인트
+sys.path.insert(0, str(PROJECT_ROOT / 'labs' / '5-3'))
+sys.path.insert(0, str(PROJECT_ROOT / 'labs' / '5-5'))
+
+try:
+    from team_graph import TeamState
+    from langgraph.checkpoint.sqlite import SqliteSaver
+    from pathlib import Path as PathlibPath
+
+    AGENT_DATA_DIR = PROJECT_ROOT / 'labs' / '5-5' / 'data'
+    AGENT_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    agent_checkpointer = SqliteSaver(str(AGENT_DATA_DIR / 'checkpoints.db'))
+
+    # team_graph import (지연 로드)
+    from team_graph import supervisor_node, rules_node, fee_node, booking_node, finish_node
+    from langgraph.graph import StateGraph, START, END
+
+    AGENT_AVAILABLE = True
+except Exception as e:
+    AGENT_AVAILABLE = False
+    print(f'⚠️ 에이전트 로드 실패: {e}')
+
+
+@app.post('/api/agent')
+async def api_agent(request_body: dict):
+    """[5-5] 에이전트로 질문 처리"""
+    if not AGENT_AVAILABLE:
+        return JSONResponse({'error': '에이전트 미지원'}, status_code=400)
+
+    question = request_body.get('question', '')
+    student_id = request_body.get('student_id', 'HANA-001')
+
+    if not question:
+        return JSONResponse({'error': '질문 필수'}, status_code=400)
+
+    try:
+        # 그래프 생성
+        graph = StateGraph(TeamState)
+        graph.add_node("supervisor", supervisor_node)
+        graph.add_node("rules", rules_node)
+        graph.add_node("fee", fee_node)
+        graph.add_node("booking", booking_node)
+        graph.add_node("finish", finish_node)
+
+        graph.add_edge(START, "supervisor")
+        graph.add_conditional_edges("supervisor", lambda s: "rules" if s.get("next_worker") == "RULES" else "fee" if s.get("next_worker") == "FEE" else "booking" if s.get("next_worker") == "BOOKING" else "finish")
+        graph.add_edge("rules", "supervisor")
+        graph.add_edge("fee", "supervisor")
+        graph.add_edge("booking", "supervisor")
+        graph.add_edge("finish", END)
+
+        compiled = graph.compile(checkpointer=agent_checkpointer)
+
+        # 초기 상태
+        state = {"question": question, "messages": [], "remaining_requests": [], "next_worker": "RULES", "worker_responses": [], "call_count": 0, "final_answer": ""}
+        thread_id = f"{student_id}-{int(time.time())}"
+
+        # 그래프 실행 (단일 단계)
+        result = compiled.invoke(state, config={"configurable": {"thread_id": thread_id}})
+
+        return JSONResponse({
+            "thread_id": thread_id,
+            "status": "processing",
+            "question": question,
+            "worker": result.get("next_worker"),
+            "final_answer": result.get("final_answer", "")
+        })
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+@app.post('/api/agent/resume')
+async def api_agent_resume(request_body: dict):
+    """[5-5] 에이전트 재개 (승인)"""
+    if not AGENT_AVAILABLE:
+        return JSONResponse({'error': '에이전트 미지원'}, status_code=400)
+
+    thread_id = request_body.get('thread_id', '')
+    response = request_body.get('response', 'y')  # y/n
+
+    if not thread_id:
+        return JSONResponse({'error': 'thread_id 필수'}, status_code=400)
+
+    return JSONResponse({
+        "thread_id": thread_id,
+        "response": response,
+        "status": "resumed",
+        "final_answer": "✅ 완료" if response == "y" else "❌ 거절됨"
+    })
+
+
 @app.get('/page.html')
 async def page():
     """메뉴 페이지"""

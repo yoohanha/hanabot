@@ -233,6 +233,30 @@ EMBED_MODEL = os.getenv("EMBED_MODEL", "bge-m3")
   from labs.4_4.guard_check import check_safety, ...
   ```
 
+### 5-5: Human in the Loop 웹 연결
+#### 파일 위치
+- **새 파일**: `labs/5-5/` 폴더 **안에만** 생성
+- **웹 수정**: `web/server.py`, `web/static/` **안에만** (범위 제한)
+
+#### 웹 수정 범위
+- **허용**: 엔드포인트 추가만 (`/accept`, `/reject` 등)
+- **금지**: 기존 RAG 채팅 로직 수정 금지 (1-3부 기능 유지)
+- **예약 저장**: `labs/4-1/data/` 에만 사용 (`web/data/` 금지)
+- **개인정보**: 학번, 선호사항만 (3부 정책 그대로)
+
+#### 단계 표시
+- 새로 추가하거나 수정한 코드: `# [5-5]` 주석 필수
+
+#### 도구 재사용 (1~4부)
+- **금지**: 도구를 복사하기
+- **필수**: import로 가져와 사용
+  ```python
+  from labs.4_1.hana_tools import get_today, search_rules, ...
+  from labs.4_2.long_memory import load_memory, save_memory, ...
+  from labs.4_3.mcp_integration import run_mcp_tool, ...
+  from labs.4_4.guard_check import check_safety, ...
+  ```
+
 ## 📌 체크리스트
 단계를 마치기 전에 확인:
 - [ ] 코드에 모델/주소 하드코딩 없음

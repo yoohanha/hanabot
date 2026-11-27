@@ -69,6 +69,16 @@
   - 팀 그래프: Supervisor 패턴 (질문 분석 → 담당 지정 → 조율 → 답변)
   - 성능 비교: 혼자(40%) vs 팀(60%) 정확성, 팀이 20% 더 높음
 
+- **5-4: CrewAI 비교** (Sequential · Hierarchical)
+  - 팀 대비 CrewAI: 코드 1/6로 간단함 (229줄 vs 1384줄)
+  - 순서형(Sequential) vs 계층형(Hierarchical): 매니저의 조율 비교
+  - 복잡도 vs 편의성: LangGraph는 상세 제어, CrewAI는 빠른 개발
+
+- **5-5: Human in the Loop 완료** (Interrupt · 승인 버튼 · 홈페이지 연결)
+  - Interrupt 멈춤: Booking 담당이 실행하기 전에 사용자 승인 대기
+  - 홈페이지 연결: /api/agent · /api/agent/resume 엔드포인트
+  - 팀 그래프 + 요청 수정 (edit/reject): 가드레일 재검사 후 실행
+
 ### **2부: 하나 AI 학원 웹사이트** (FastAPI + 바닐라 JS)
 ```
 정적 페이지 ← 마크다운 렌더링 ← RAG_PLAN.md
