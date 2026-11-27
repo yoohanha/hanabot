@@ -69,10 +69,10 @@
   - 팀 그래프: Supervisor 패턴 (질문 분석 → 담당 지정 → 조율 → 답변)
   - 성능 비교: 혼자(40%) vs 팀(60%) 정확성, 팀이 20% 더 높음
 
-- **5-4: CrewAI 비교** (Sequential · Hierarchical)
-  - 팀 대비 CrewAI: 코드 1/6로 간단함 (229줄 vs 1384줄)
-  - 순서형(Sequential) vs 계층형(Hierarchical): 매니저의 조율 비교
-  - 복잡도 vs 편의성: LangGraph는 상세 제어, CrewAI는 빠른 개발
+- **5-4: CrewAI 팀** (run.py 15번 · labs/5-4/.venv 에서 실행)
+  - Sequential: 규정 담당 → 수강료 담당 → 상담 정리 담당 · 실무반 2개월 친구 할인 900,000원 확인 (약 2분)
+  - crewai 는 ChatOllama 를 받지 않음 → crewai LLM("ollama/모델") · 금액 도구는 result_as_answer
+  - Hierarchical · LangGraph 비교표(compare.md)는 실제 실행 결과로 아직 채우지 않음
 
 - **5-5: Human in the Loop 완료** (Interrupt · 승인 버튼 · 홈페이지 연결)
   - Interrupt 멈춤: Booking 담당이 실행하기 전에 사용자 승인 대기

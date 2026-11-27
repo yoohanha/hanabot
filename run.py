@@ -189,9 +189,10 @@ def show_menu():
     print("12. 에이전틱 AI · LangGraph (5-1)")
     print("13. 에이전틱 AI · Plan & Reflect (5-2)")
     print("14. 에이전틱 AI · 멀티 에이전트 (5-3)")
+    print("15. 에이전틱 AI · CrewAI (5-4)")
     print("q. 종료\n")
     print("-" * 60)
-    return input("번호를 입력하세요 (1-14, q) > ").strip()
+    return input("번호를 입력하세요 (1-15, q) > ").strip()
 
 def run_hello_test():
     """Ollama 연결 테스트"""
@@ -312,11 +313,20 @@ def main():
         elif choice == '14':
             # [5-3] 에이전틱 AI · 멀티 에이전트
             run_command("labs/5-3/team_graph.py", "에이전틱 AI · 멀티 에이전트")
+        elif choice == '15':
+            # [5-4] CrewAI 는 labs/5-4/.venv 의 파이썬으로만 실행 (전체 파이썬에 설치하지 않음)
+            venv_python = Path("labs/5-4/.venv/Scripts/python.exe")
+            if not venv_python.exists():
+                print("❌ labs/5-4/.venv 가 없습니다. 4교시 프롬프트 ⓪ 으로 먼저 설치하세요." + chr(10))
+            else:
+                print(chr(10) + "▶ 실행하는 명령: labs/5-4/.venv/Scripts/python labs/5-4/crew_hana.py" + chr(10))
+                env = {**os.environ, "OTEL_SDK_DISABLED": "true", "CREWAI_TELEMETRY_OPT_OUT": "true"}
+                subprocess.run([str(venv_python), "labs/5-4/crew_hana.py"], env=env)
         elif choice.lower() == 'q':
             print("프로그램을 종료합니다. 👋\n")
             break
         else:
-            print("❌ 잘못된 선택입니다. 1-14 또는 q를 입력하세요.\n")
+            print("❌ 잘못된 선택입니다. 1-15 또는 q를 입력하세요.\n")
 
 if __name__ == "__main__":
     main()
